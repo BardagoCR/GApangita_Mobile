@@ -1,0 +1,21 @@
+# Environments
+backend/venv/
+backend/env/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+backend/uploads/*
+
+backend/uploads/items/*
+backend/uploads/claimant/*
+
+!backend/uploads/items/.gitkeep
+!backend/uploads/claimant/.gitkeep

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - GApangita?</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 100px);
+        }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2.5rem;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group{
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            color: #aaa;
+            font-size: 16px;
+            pointer-events: none;
+        }
+        .form-input {
+            width: 100%;
+            padding: 10px 36px;
+            border: 1px solid #3E2723;
+            border-radius: 8px;
+            font-size: 16px;
+            color: #333;
+            outline: none;
+            background-color: #fff9f9;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            color: #aaa;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .icon {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 2px solid #f4cdd3; /* light pink outline */
+            background-color: #fdf3f5; /* soft pink fill */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .icon i {
+            font-size: 3rem;
+            color: var(--color-primary);
+        }
+
+        .login-header h2 {
+            font-size: 1.8rem;
+            color: var(--color-primary);
+            margin: 0;
+        }
+        .login-header p {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            display: none;
+            text-align: center;
+        }
+        .btn-full {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+
+        button[type="submit"] {
+            background-color: #ff7b8f;
+        }
+
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html" class="navbar__brand">
+            <i class="fa-solid fa-box-open"></i>
+            GApangita?</a>
+        <div class="navbar__links">
+            <a href="index.html" class="navbar__link">Home</a>
+        </div>
+    </nav>
+
+    <div class="container login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="icon">
+                    <i class="fa-solid fa-user-lock"></i>
+                </div>
+                <h2>Welcome Back</h2>
+                <p>Login to your account to continue</p>
+            </div>
+
+            <div id="loginError" class="error-message"></div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="username">Username</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope input-icon"></i>
+                        <input type="text" id="username" class="form-input" placeholder="Enter your username" required>
+                    </div>
+                    
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <div style="position: relative;">
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-lock input-icon"></i>
+                            <input type="password" id="password" class="form-input" placeholder="••••••••" required>
+                            <i class="fa-regular fa-eye toggle-password" onclick="togglePassword()"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-full">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Modal System -->
+    <div id="customModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 id="modalTitle">Notice</h3>
+            </div>
+            <div class="modal-body">
+                <p id="modalMessage"></p>
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <!-- Buttons will be injected here -->
+            </div>
+        </div>
+    </div>
+
+<script src="config.js"></script>
+<script src="utils.js"></script>
+
+<script src="app.js"></script>
+
+<script src="modal.js"></script>
+<script src="auth.js"></script>
+
+<script src="branchLocations.js"></script>
+<script src="forms.js"></script>
+<script src="items.js"></script>
+<script src="search.js"></script>
+<script src="unsavedChanges.js"></script>
+
+</body>
+</html>

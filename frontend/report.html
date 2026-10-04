@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Item - GApangita?</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html" class="navbar__brand">
+            <i class="fa-solid fa-box-open"></i>
+            GApangita?</a>
+        <div class="navbar__links">
+            <a href="index.html" class="navbar__link">Home</a>
+            <a href="report.html" class="navbar__link">Report Item</a>
+            <a href="report.html" class="navbar__link">
+                <i class="fa-solid fa-user-circle" style="margin-right: 8px;"></i>
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="grid-layout">
+            <div class="card">
+                <h2>Report an Item</h2>
+                <p>Fill out the details below to report an item you have either lost or found.</p>
+                <form id="reportForm">
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="itemName">Item Name</label>
+                        <input type="text" id="itemName" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="itemType">I have...</label>
+                        <select id="itemType" class="form-select" required>
+                            <option value="lost">Lost an item</option>
+                            <option value="found">Found an item</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="categoryId">Category</label>
+                        <select id="categoryId" class="form-select" required>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="branchId">School Branch</label>
+                        <select id="branchId" class="form-select" required>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="locationId">Location</label>
+                        <select id="locationId" class="form-select" required>
+                            <option selected disabled>Select Branch first...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group datetime-container">
+                        <label class="form-label" for="dateFound">Date and Time Found</label>
+                        <div class="input-action-wrapper">
+                            <input type="datetime-local" id="dateFound" class="form-control" required>
+                            <button type="button" id="confirmDateTimeBtn" class="datetime-ok-btn"> OK </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="itemDescription">Description</label>
+                        <textarea id="itemDescription" class="form-control" rows="4" minlength="8" placeholder="Describe distinguishing features (e.g., color, brand, scratches, case design)..." required></textarea>
+                    </div>
+
+                    <button type="submit" id="submitReportBtn" class="btn btn-primary" disabled>Submit Report</button>
+                </form>
+            </div>
+
+            <div class="right-side">
+                <div class="pink-card" style="background-color: var(--color-accent); color: var(--color-primary);">
+                    <h2><i class="fa-regular fa-lightbulb"></i>  Tips for Reporting</h2>
+                    <ul>
+                        <li>Be as specific as possible in your description.</li>
+                        <li>Mention unique markings, brands, or colors.</li>
+                        <li>Ensure you select the correct category.</li>
+                    </ul>
+                </div>
+
+                <div class="capture-card" style="background-color: var(--color-accent); color: var(--color-primary);">
+                    <h2> Capture Item Image </h2>
+
+                    <div class="camera-section">
+
+                        <button type="button" id="openItemCameraBtn" class="btn"> Open Item Camera </button>
+                        <button type="button" id="captureItemBtn" class="btn"> Capture Item Image </button>
+                        <video id="itemCameraFeed" autoplay playsinline></video>
+                        <canvas id="itemSnapshotCanvas"></canvas>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="camera-card" style="background-color: var(--color-accent); color: var(--color-primary);">
+                    <h2><i class="fa-regular fa-image"></i> Item Image Preview</h2>
+
+                    <div class="image-preview-container">
+                        <img id="itemImagePreview" alt="Preview" style = "display:none;">
+                        <p id="itemPreviewPlaceholder"> No image selected yet. </p>
+
+                        <button type="button" id="cancelItemImageBtn" class="btn"> Remove Item Image </button>
+                    </div>
+                    
+                </div>
+
+
+            </div>          
+
+        </div>
+    </div>
+
+    <!-- Custom Modal System -->
+    <div id="customModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 id="modalTitle">Notice</h3>
+            </div>
+            <div class="modal-body">
+                <p id="modalMessage"></p>
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <!-- Buttons will be injected here -->
+            </div>
+        </div>
+    </div>
+
+
+<script src="config.js"></script>
+<script src="utils.js"></script>
+
+<script src="app.js"></script>
+
+<script src="modal.js"></script>
+<script src="auth.js"></script>
+
+<script src="branchLocations.js"></script>
+<script src="forms.js"></script>
+<script src="itemCamera.js"></script>
+<script src="items.js"></script>
+<script src="search.js"></script>
+<script src="unsavedChanges.js"></script>
+
+
+</body>
+</html>
