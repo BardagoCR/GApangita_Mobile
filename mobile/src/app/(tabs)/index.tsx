@@ -10,6 +10,7 @@ import { Notice, Page } from '@/src/components/ui';
 import { getBranches, getCategories, getLocations, searchItems } from '@/src/services/api/gapangita';
 import type { Branch, Category, Item, Location } from '@/src/types/api';
 import { colors } from '@/src/theme/colors';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type ItemTypeFilter = 'all' | 'lost' | 'found';
 
@@ -78,6 +79,89 @@ export default function FindScreen() {
     setPage(1);
   }
 
+  function renderSearchFilters() {
+    return (
+      <View style={styles.searchSection}>
+        <Text style={styles.sectionTitle}>Find an item</Text>
+
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={19} color={colors.muted} />
+          <TextInput
+            value={name}
+            onChangeText={(value) => { setName(value); setPage(1); }}
+            placeholder="What are you looking for?"
+            placeholderTextColor={colors.muted}
+            returnKeyType="search"
+            style={styles.searchInput}
+          />
+          {name ? (
+            <Pressable accessibilityLabel="Clear item search" onPress={() => setName('')}>
+              <Ionicons name="close-circle" size={19} color={colors.muted} />
+            </Pressable>
+          ) : null}
+        </View>
+
+        <TextInput
+          value={description}
+          onChangeText={(value) => { setDescription(value); setPage(1); }}
+          placeholder="Add details like color or brand"
+          placeholderTextColor={colors.muted}
+          style={styles.detailInput}
+        />
+
+        <View style={styles.typeRow}>
+          {(['all', 'lost', 'found'] as const).map((option) => (
+            <Pressable
+              key={option}
+              onPress={() => updateType(option)}
+              style={[styles.typeChip, type === option && styles.typeChipActive]}
+            >
+              <Text style={[styles.typeText, type === option && styles.typeTextActive]}>
+                {option === 'all' ? 'Everything' : option}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.pickerRow}>
+          <Picker selectedValue={categoryCode} onValueChange={(value) => { setCategoryCode(value); setPage(1); }} style={styles.picker}>
+            <Picker.Item label="All categories" value="" />
+            {categories.map((category) => (
+              <Picker.Item key={category.category_code} label={category.name} value={category.category_code} />
+            ))}
+          </Picker>
+
+          <Picker selectedValue={branchCode} onValueChange={(value) => { setBranchCode(value); setLocationCode(''); setLocations([]); setPage(1); }} style={styles.picker}>
+            <Picker.Item label="All branches" value="" />
+            {branches.map((branch) => (
+              <Picker.Item key={branch.branch_code} label={branch.name} value={branch.branch_code} />
+            ))}
+          </Picker>
+
+          {branchCode ? (
+            <Picker selectedValue={locationCode} onValueChange={(value) => { setLocationCode(value); setPage(1); }} style={styles.picker}>
+              <Picker.Item label="All locations" value="" />
+              {locations.map((location) => (
+                <Picker.Item key={location.location_code} label={location.name} value={location.location_code} />
+              ))}
+            </Picker>
+          ) : null}
+        </View>
+
+        <View style={styles.resultsHeader}>
+          <Text style={styles.sectionTitle}>Open listings</Text>
+          {hasLoadedResults && !loading ? <Text style={styles.resultCount}>{total} results</Text> : null}
+        </View>
+
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        {loading ? <ActivityIndicator color={colors.maroon} style={styles.loader} /> : null}
+        {!loading && hasLoadedResults && items.length === 0 && !error ? (
+          <Notice>No matching listings yet. Try another name or filter.</Notice>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <Page>
       <SafeAreaView edges={['top']} style={styles.safe}>
@@ -92,64 +176,25 @@ export default function FindScreen() {
                 <View style={styles.brandMark}><Ionicons name="search" size={19} color={colors.maroonDark} /></View>
                 <Text style={styles.brand}>GApangita<Text style={styles.brandQuestion}>?</Text></Text>
               </View>
+            
+            <LinearGradient
+              colors={[colors.maroonDark, colors.maroon]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.hero}
+              >
+            
+
               <View style={styles.hero}>
                 <Text style={styles.heroKicker}>LOST & FOUND · CAMPUS</Text>
                 <Text style={styles.heroTitle}>Let’s get it{ '\n' }back to you.</Text>
                 <Text style={styles.heroCopy}>Search the campus listings or report something you found.</Text>
                 <View style={styles.heroStamp}><Ionicons name="cube" size={23} color={colors.maroonDark} /></View>
               </View>
-              <View style={styles.searchSection}>
-                <Text style={styles.sectionTitle}>Find an item</Text>
-                <View style={styles.searchBox}>
-                  <Ionicons name="search" size={19} color={colors.muted} />
-                  <TextInput
-                    value={name}
-                    onChangeText={(value) => { setName(value); setPage(1); }}
-                    placeholder="What are you looking for?"
-                    placeholderTextColor={colors.muted}
-                    returnKeyType="search"
-                    style={styles.searchInput}
-                  />
-                  {name ? <Pressable accessibilityLabel="Clear item search" onPress={() => setName('')}><Ionicons name="close-circle" size={19} color={colors.muted} /></Pressable> : null}
-                </View>
-                <TextInput
-                  value={description}
-                  onChangeText={(value) => { setDescription(value); setPage(1); }}
-                  placeholder="Add details like color or brand"
-                  placeholderTextColor={colors.muted}
-                  style={styles.detailInput}
-                />
-                <View style={styles.typeRow}>
-                  {(['all', 'lost', 'found'] as const).map((option) => (
-                    <Pressable key={option} onPress={() => updateType(option)} style={[styles.typeChip, type === option && styles.typeChipActive]}>
-                      <Text style={[styles.typeText, type === option && styles.typeTextActive]}>{option === 'all' ? 'Everything' : option}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <View style={styles.pickerRow}>
-                  <Picker selectedValue={categoryCode} onValueChange={(value) => { setCategoryCode(value); setPage(1); }} style={styles.picker}>
-                    <Picker.Item label="All categories" value="" />
-                    {categories.map((category) => <Picker.Item key={category.category_code} label={category.name} value={category.category_code} />)}
-                  </Picker>
-                  <Picker selectedValue={branchCode} onValueChange={(value) => { setBranchCode(value); setLocationCode(''); setLocations([]); setPage(1); }} style={styles.picker}>
-                    <Picker.Item label="All branches" value="" />
-                    {branches.map((branch) => <Picker.Item key={branch.branch_code} label={branch.name} value={branch.branch_code} />)}
-                  </Picker>
-                  {branchCode ? (
-                    <Picker selectedValue={locationCode} onValueChange={(value) => { setLocationCode(value); setPage(1); }} style={styles.picker}>
-                      <Picker.Item label="All locations" value="" />
-                      {locations.map((location) => <Picker.Item key={location.location_code} label={location.name} value={location.location_code} />)}
-                    </Picker>
-                  ) : null}
-                </View>
-                <View style={styles.resultsHeader}>
-                  <Text style={styles.sectionTitle}>Open listings</Text>
-                  {hasLoadedResults && !loading ? <Text style={styles.resultCount}>{total} results</Text> : null}
-                </View>
-                {error ? <Notice tone="error">{error}</Notice> : null}
-                {loading ? <ActivityIndicator color={colors.maroon} style={styles.loader} /> : null}
-                {!loading && hasLoadedResults && items.length === 0 && !error ? <Notice>No matching listings yet. Try another name or filter.</Notice> : null}
-              </View>
+              
+              </LinearGradient>
+
+              {renderSearchFilters()}
             </View>
           }
           renderItem={({ item }) => (
@@ -173,38 +218,184 @@ export default function FindScreen() {
   );
 }
 
+const field = {
+  borderWidth: 1,
+  borderColor: colors.line,
+  borderRadius: 10,
+  backgroundColor: colors.white,
+} as const;
+
 const styles = StyleSheet.create({
+  // Layout
   safe: { flex: 1 },
-  content: { paddingHorizontal: 18, paddingBottom: 28 },
+  content: {
+    paddingHorizontal: 18,
+    paddingBottom: 28,
+  },
   headerContent: { gap: 18 },
-  brandRow: { height: 42, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  brandMark: { width: 31, height: 31, borderRadius: 9, backgroundColor: colors.yellow, alignItems: 'center', justifyContent: 'center' },
-  brand: { fontSize: 19, fontWeight: '900', color: colors.ink },
+
+  // Brand
+  brandRow: {
+    height: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  brandMark: {
+    width: 31,
+    height: 31,
+    borderRadius: 9,
+    backgroundColor: colors.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brand: {
+    fontSize: 19,
+    fontWeight: '900',
+    color: colors.ink,
+  },
   brandQuestion: { color: colors.coral },
-  hero: { minHeight: 188, overflow: 'hidden', borderRadius: 14, backgroundColor: colors.maroon, padding: 20, justifyContent: 'center' },
-  heroKicker: { color: colors.yellow, fontSize: 10, fontWeight: '900', letterSpacing: 1.1, marginBottom: 9 },
-  heroTitle: { color: colors.white, fontSize: 33, lineHeight: 35, fontWeight: '900' },
-  heroCopy: { color: colors.maroonLight, fontSize: 13, lineHeight: 19, maxWidth: '75%', marginTop: 8 },
-  heroStamp: { position: 'absolute', right: 20, bottom: 18, width: 54, height: 54, borderRadius: 16, backgroundColor: colors.yellow, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '7deg' }] },
+
+  // Hero
+  hero: {
+    minHeight: 188,
+    overflow: 'hidden',
+    borderRadius: 14,
+    padding: 20,
+    justifyContent: 'center',
+  },
+  heroKicker: {
+    color: colors.yellow,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+    marginBottom: 9,
+  },
+  heroTitle: {
+    color: colors.white,
+    fontSize: 33,
+    lineHeight: 35,
+    fontWeight: '900',
+  },
+  heroCopy: {
+    color: colors.maroonLight,
+    fontSize: 13,
+    lineHeight: 19,
+    maxWidth: '75%',
+    marginTop: 8,
+  },
+  heroStamp: {
+    position: 'absolute',
+    right: 20,
+    bottom: 18,
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: colors.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '7deg' }],
+  },
+
+  // Search
   searchSection: { gap: 11 },
-  sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
-  searchBox: { minHeight: 50, borderWidth: 1, borderColor: colors.line, borderRadius: 10, backgroundColor: colors.white, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  searchInput: { flex: 1, color: colors.ink, fontSize: 14, paddingVertical: 10 },
-  detailInput: { height: 45, paddingHorizontal: 13, borderWidth: 1, borderColor: colors.line, borderRadius: 10, backgroundColor: colors.white, color: colors.ink, fontSize: 13 },
-  typeRow: { flexDirection: 'row', gap: 8 },
-  typeChip: { minHeight: 35, borderRadius: 20, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 14, justifyContent: 'center', backgroundColor: colors.white },
-  typeChipActive: { borderColor: colors.maroon, backgroundColor: colors.maroon },
-  typeText: { textTransform: 'capitalize', color: colors.ink, fontSize: 12, fontWeight: '700' },
+  sectionTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  searchBox: {
+    ...field,
+    minHeight: 50,
+    paddingHorizontal: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 14,
+    paddingVertical: 10,
+  },
+  detailInput: {
+    ...field,
+    height: 45,
+    paddingHorizontal: 13,
+    color: colors.ink,
+    fontSize: 13,
+  },
+
+  // Type chips
+  typeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  typeChip: {
+    minHeight: 35,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  typeChipActive: {
+    borderColor: colors.maroon,
+    backgroundColor: colors.maroon,
+  },
+  typeText: {
+    textTransform: 'capitalize',
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   typeTextActive: { color: colors.white },
-  pickerRow: { borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white },
-  picker: { color: colors.ink, height: 48 },
-  resultsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 },
-  resultCount: { color: colors.muted, fontSize: 12 },
+
+  // Pickers
+  pickerRow: {
+    ...field,
+    overflow: 'hidden',
+  },
+  picker: {
+    color: colors.ink,
+    height: 48,
+  },
+
+  // Results
+  resultsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 5,
+  },
+  resultCount: {
+    color: colors.muted,
+    fontSize: 12,
+  },
   loader: { paddingVertical: 18 },
   separator: { height: 9 },
-  pagination: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 15 },
-  pageButton: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 12 },
-  pageText: { color: colors.maroon, fontWeight: '800', fontSize: 12 },
-  pageLabel: { color: colors.muted, fontSize: 12 },
+
+  // Pagination
+  pagination: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 15,
+  },
+  pageButton: {
+    minHeight: 38,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  pageText: {
+    color: colors.maroon,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  pageLabel: {
+    color: colors.muted,
+    fontSize: 12,
+  },
   disabledText: { color: colors.line },
 });
