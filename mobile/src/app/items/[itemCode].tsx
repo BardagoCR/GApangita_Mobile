@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton, Notice, Page } from '@/src/components/ui';
-import { imageUrl, request } from '@/src/services/api/client';
+import { request } from '@/src/services/api/client';
 import type { Item } from '@/src/types/api';
 import { colors } from '@/src/theme/colors';
 
@@ -24,32 +24,42 @@ export default function ItemDetailsScreen() {
     return () => { cancelled = true; };
   }, [itemCode]);
 
-  const photo = imageUrl(item?.item_file_path);
+  const statusLabel = item?.status === 'Available'
+    ? 'Available'
+    : item?.status === 'Under Verification'
+      ? 'Under verification'
+      : item?.status === 'Contact Staff'
+        ? 'Contact staff'
+        : item?.status === 'Unavailable'
+          ? 'Unavailable'
+          : 'Closed';
 
   return (
     <Page>
       <SafeAreaView edges={['top']} style={styles.safe}>
         <ScrollView contentContainerStyle={styles.content}>
-          <Text onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={18} color={colors.maroon} />  Back to listings</Text>
+          <Text onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={18} color={colors.maroon} /> Back to listings</Text>
           {loading ? <ActivityIndicator color={colors.maroon} style={styles.loader} /> : null}
           {error ? <Notice tone="error">{error}</Notice> : null}
           {item ? (
-            <>
-              {photo ? <Image source={{ uri: photo }} style={styles.image} /> : <View style={styles.imageFallback}><Ionicons name="cube-outline" size={48} color={colors.maroon} /><Text style={styles.fallbackText}>No item photo</Text></View>}
-              <View style={styles.details}>
-                <View style={[styles.badge, item.item_type === 'found' ? styles.found : styles.lost]}>
-                  <Text style={styles.badgeText}>{item.item_type.toUpperCase()} ITEM</Text>
-                </View>
-                <Text style={styles.title}>{item.name}</Text>
-                <Text style={styles.description}>{item.description || 'No description provided.'}</Text>
-                <View style={styles.rule} />
-                <DetailRow icon="pricetag-outline" label="Category" value={item.categoryName || 'Not specified'} />
-                <DetailRow icon="location-outline" label="Found at" value={[item.locationName, item.branchName].filter(Boolean).join(', ') || 'Not specified'} />
-                <DetailRow icon="calendar-outline" label="Date reported" value={item.date_found || item.date_reported || 'Not specified'} />
-                <Text style={styles.itemCode}>REFERENCE  {item.item_code}</Text>
-                <ActionButton title="This is mine · Start a claim" onPress={() => router.push(`/claims/${encodeURIComponent(item.item_code)}` as never)} />
+            <View style={styles.details}>
+              <View style={[styles.badge, item.item_type === 'found' ? styles.found : styles.lost]}>
+                <Text style={styles.badgeText}>{item.item_type.toUpperCase()} ITEM</Text>
               </View>
-            </>
+              <Text style={styles.status}>{statusLabel}</Text>
+              <Text style={styles.itemCode}>REFERENCE {item.item_code}</Text>
+              <View style={styles.rule} />
+              <DetailRow icon="pricetag-outline" label="Category" value={item.categoryName || 'Not specified'} />
+              <DetailRow icon="color-filter-outline" label="Public color" value={item.public_color || 'Not specified'} />
+              <DetailRow icon="location-outline" label="Campus" value={item.branchName || 'Not specified'} />
+              <DetailRow icon="calendar-outline" label="Reported" value={item.date_found ? item.date_found.slice(0, 10) : 'Not specified'} />
+              <Notice>Private item details and original photos are available only to authorized staff.</Notice>
+              <ActionButton
+                title={item.can_claim ? 'This is mine · Start a claim' : 'Claim unavailable'}
+                disabled={!item.can_claim}
+                onPress={() => router.push(`/claims/${encodeURIComponent(item.item_code)}` as never)}
+              />
+            </View>
           ) : null}
         </ScrollView>
       </SafeAreaView>
@@ -71,16 +81,12 @@ const styles = StyleSheet.create({
   content: { padding: 18, gap: 15 },
   back: { color: colors.maroon, fontSize: 13, fontWeight: '800', paddingVertical: 5 },
   loader: { padding: 30 },
-  image: { width: '100%', height: 245, borderRadius: 14, backgroundColor: colors.maroonLight },
-  imageFallback: { height: 245, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.maroonLight },
-  fallbackText: { color: colors.maroon, fontSize: 12, fontWeight: '700' },
   details: { gap: 14, backgroundColor: colors.white, borderRadius: 14, borderWidth: 1, borderColor: colors.line, padding: 17 },
   badge: { alignSelf: 'flex-start', borderRadius: 5, paddingHorizontal: 9, paddingVertical: 5 },
   found: { backgroundColor: colors.maroonLight },
   lost: { backgroundColor: '#F8E5D7' },
   badgeText: { color: colors.maroonDark, fontSize: 10, fontWeight: '900' },
-  title: { color: colors.ink, fontSize: 26, lineHeight: 31, fontWeight: '900' },
-  description: { color: colors.muted, fontSize: 14, lineHeight: 21 },
+  status: { color: colors.maroon, fontSize: 16, fontWeight: '900' },
   rule: { height: 1, backgroundColor: colors.line },
   detailRow: { flexDirection: 'row', gap: 11, alignItems: 'center' },
   detailIcon: { width: 34, height: 34, borderRadius: 9, backgroundColor: colors.maroonLight, alignItems: 'center', justifyContent: 'center' },

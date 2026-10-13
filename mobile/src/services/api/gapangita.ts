@@ -1,6 +1,7 @@
 import type {
   Branch,
   Category,
+  Claim,
   ClaimInput,
   Item,
   Location,
@@ -17,7 +18,6 @@ export type SearchFilters = {
   type?: 'all' | 'lost' | 'found';
   categoryCode?: string;
   branchCode?: string;
-  locationCode?: string;
   status?: 'open' | 'closed';
   unarchivePage?: boolean;
   browseAll?: boolean;
@@ -47,7 +47,6 @@ export async function searchItems(filters: SearchFilters = {}) {
   if (filters.type && filters.type !== 'all') query.set('filter', filters.type);
   if (filters.categoryCode) query.set('category_code', filters.categoryCode);
   if (filters.branchCode) query.set('branch_code', filters.branchCode);
-  if (filters.locationCode) query.set('location_code', filters.locationCode);
   if (filters.status) query.set('status', filters.status);
   if (filters.unarchivePage) query.set('unarchive_page', '1');
   if (filters.browseAll) query.set('browse_all', '1');
@@ -95,6 +94,7 @@ export async function submitReport(input: ReportInput) {
   form.append('branch_code', input.branchCode);
   form.append('location_code', input.locationCode);
   form.append('date_found', input.dateFound.replace('T', ' '));
+  form.append('public_color', input.publicColor);
   if (input.image) await appendImage(form, 'item_image', input.image);
   return request<{ message: string; id: number }>('/items', { method: 'POST', body: form });
 }
@@ -106,12 +106,35 @@ export async function submitClaim(input: ClaimInput) {
   form.append('claimer_middle_name', input.middleName.trim());
   form.append('claimer_last_name', input.lastName.trim());
   form.append('contact_number', input.contactNumber.trim());
-  await appendImage(form, 'claimProof', input.proof);
-  return request<{ message: string }>('/claims', { method: 'POST', body: form });
+  form.append('claimant_email', input.email.trim());
+  form.append('claimant_affiliation', input.affiliation);
+  form.append('last_seen_location', input.lastSeenLocation.trim());
+  if (input.lastSeenDateTime) form.append('last_seen_date_time', input.lastSeenDateTime);
+  form.append('item_description', input.itemDescription.trim());
+  form.append('identifying_features', input.identifyingFeatures.trim());
+  form.append('contents', input.contents.trim());
+  form.append('additional_evidence', input.additionalEvidence.trim());
+  if (input.evidence) await appendImage(form, 'evidence', input.evidence);
+  return request<{ message: string; item_code: string }>('/claims', { method: 'POST', body: form });
 }
 
-export async function getItemClaim(itemCode: string) {
-  return request<Record<string, string | number | null>>(`/claims/${encodeURIComponent(itemCode)}`);
+export async function getClaimQueue() {
+  return request<{ claims: Claim[] }>('/claims');
+}
+
+export async function getClaimDetails(itemCode: string) {
+  return request<Claim & { item_name: string; item_description_private: string; item_status: string; location_code: string; item_file_path: string | null; public_color: string | null }>(`/claims/${encodeURIComponent(itemCode)}`);
+}
+
+export async function updateClaimStatus(itemCode: string, status: Claim['status'], notes: string) {
+  return request<{ message: string }>(`/claims/${encodeURIComponent(itemCode)}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, notes }),
+  });
+}
+
+export async function getClaimEvidence(itemCode: string) {
+  return request<Blob>(`/claims/${encodeURIComponent(itemCode)}/evidence`, {}, 'blob');
 }
 
 export async function getUnarchivedItem(itemCode: string) {

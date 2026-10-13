@@ -45,6 +45,9 @@ export default function AccountScreen() {
                 <View style={styles.profileText}><Text style={styles.name}>{user.username}</Text><Text style={styles.role}>{user.user_role}</Text></View>
               </View>
               <Text style={styles.sectionLabel}>RECORDS</Text>
+              {['Admin', 'Staff'].includes(user.user_role) ? (
+                <MenuRow icon="shield-checkmark-outline" label="Claim queue" onPress={() => router.push('/staff/claims' as never)} />
+              ) : null}
               <MenuRow icon="archive-outline" label="Archived items" onPress={() => router.push('/staff/archive')} />
               <MenuRow icon="time-outline" label="Restore history" onPress={() => router.push('/staff/unarchive-history')} />
               <View style={styles.signout}><ActionButton title="Sign out" variant="quiet" onPress={() => void handleSignOut()} loading={signingOut} /></View>

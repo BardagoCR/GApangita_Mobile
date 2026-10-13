@@ -11,6 +11,8 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F3F4EC' } }}>
           <Stack.Screen name="claims/[itemCode]" options={{ headerShown: true, title: 'Claim item' }} />
+          <Stack.Screen name="staff/claims" options={{ headerShown: true, title: 'Claim queue' }} />
+          <Stack.Screen name="staff/claims/[itemCode]" options={{ headerShown: true, title: 'Claim details' }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>

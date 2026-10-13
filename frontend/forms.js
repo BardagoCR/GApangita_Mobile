@@ -7,6 +7,7 @@ function checkFormValidity() {
 
     const nameVal = document.getElementById('itemName').value.trim();
     const typeVal = document.getElementById('itemType').value;
+    const colorVal = document.getElementById('publicColor').value;
     const categoryVal = document.getElementById('categoryId').value;
     const branchVal = document.getElementById('branchId').value;
     const locationVal = document.getElementById('locationId').value;
@@ -16,6 +17,7 @@ function checkFormValidity() {
     // Verify all required textual inputs are filled out completely
     const allFieldsFilled = nameVal.length > 0 &&
                             typeVal !== "" &&
+                            colorVal !== "" &&
                             categoryVal !== "" &&
                             branchVal !== "" &&
                             locationVal !== "" &&
@@ -37,7 +39,7 @@ const reportForm = document.getElementById('reportForm');
 if (reportForm) {
     // Bind real-time change events across all field inputs sequentially
     const inputsToWatch = [
-        'itemName', 'itemType', 'categoryId', 
+        'itemName', 'itemType', 'publicColor', 'categoryId',
         'branchId', 'locationId', 'itemDescription', 'dateFound'
     ];
 
@@ -56,6 +58,7 @@ if (reportForm) {
         const formData = new FormData();
         formData.append('name', document.getElementById('itemName').value);
         formData.append('item_type', document.getElementById('itemType').value);
+        formData.append('public_color', document.getElementById('publicColor').value);
         formData.append('category_code', document.getElementById('categoryId').value);
         formData.append('branch_code', document.getElementById('branchId').value);
         formData.append('location_code', document.getElementById('locationId').value);
