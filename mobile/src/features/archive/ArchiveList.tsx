@@ -58,10 +58,10 @@ export function ArchiveList({ history = false }: { history?: boolean }) {
           renderItem={({ item }) => (
             <ItemCard item={item} onPress={() => {
               if (!history) {
-                router.push({ pathname: '/staff/restore/[itemCode]', params: { itemCode: item.item_code, itemName: item.name } });
+                router.push({ pathname: '/staff/restore/[itemCode]', params: { itemCode: item.item_code } });
               } else {
                 void getUnarchivedItem(item.item_code).then((record) => {
-                  Alert.alert(item.name, `Restored ${record.date_unarchived || 'date unavailable'}\nReason: ${record.reason || 'No reason recorded.'}`);
+                  Alert.alert(item.item_code, `Restored ${record.date_unarchived || 'date unavailable'}\nReason: ${record.reason || 'No reason recorded.'}`);
                 }).catch((reason: Error) => Alert.alert('Unable to load history', reason.message));
               }
             }} />

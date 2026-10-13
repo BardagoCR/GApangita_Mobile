@@ -52,7 +52,7 @@ export default function FindScreen() {
     const timer = setTimeout(() => {
       setLoading(true);
       setError('');
-      void searchItems({ name, description, type, categoryCode, branchCode, locationCode, page, limit: 15, browseAll: !hasCriteria })
+      void searchItems({ name, description, type, categoryCode, branchCode, page, limit: 15, browseAll: !hasCriteria })
         .then((result) => {
           if (cancelled) return;
           setItems(result.items);

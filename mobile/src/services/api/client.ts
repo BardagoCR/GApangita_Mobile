@@ -43,7 +43,7 @@ export async function clearCsrfToken() {
   await SecureStore.deleteItemAsync(CSRF_STORAGE_KEY);
 }
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}, responseType: 'json' | 'blob' = 'json'): Promise<T> {
   const headers = new Headers(init.headers);
   const method = (init.method || 'GET').toUpperCase();
 
@@ -67,9 +67,13 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     throw new ApiError('Cannot reach the server. Check the API address and network connection.', 0);
   }
 
-  const payload = await response.json().catch(() => ({}));
+  const payload = responseType === 'blob'
+    ? await response.blob()
+    : await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = payload.error || payload.message || 'The request could not be completed.';
+    const message = typeof payload === 'object' && payload && ('error' in payload || 'message' in payload)
+      ? String(payload.error || payload.message)
+      : 'The request could not be completed.';
     throw new ApiError(message, response.status);
   }
 

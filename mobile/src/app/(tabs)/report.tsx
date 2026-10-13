@@ -10,8 +10,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionButton, Field, Heading, Notice, Page } from '@/src/components/ui';
 import { useAuth } from '@/src/features/auth/AuthContext';
 import { getBranches, getCategories, getLocations, submitReport } from '@/src/services/api/gapangita';
-import type { Branch, Category, ImageAttachment, Location } from '@/src/types/api';
+import type { Branch, Category, ImageAttachment, Location, PublicColor } from '@/src/types/api';
 import { colors } from '@/src/theme/colors';
+
+const PUBLIC_COLORS: PublicColor[] = [
+  'Black', 'White', 'Gray', 'Silver', 'Brown', 'Beige', 'Red', 'Orange', 'Yellow',
+  'Green', 'Blue', 'Purple', 'Pink', 'Gold', 'Multicolor', 'Transparent / Clear', 'Other', 'Unknown',
+];
 
 export default function ReportScreen() {
   const { user, isLoading: authLoading } = useAuth();
@@ -21,6 +26,7 @@ export default function ReportScreen() {
   const [categoryCode, setCategoryCode] = useState('');
   const [branchCode, setBranchCode] = useState('');
   const [locationCode, setLocationCode] = useState('');
+  const [publicColor, setPublicColor] = useState<PublicColor>('Unknown');
   const [dateFound, setDateFound] = useState(new Date());
   const [pickerMode, setPickerMode] = useState<'date' | 'time' | null>(null);
   const [image, setImage] = useState<ImageAttachment | null>(null);
@@ -69,9 +75,9 @@ export default function ReportScreen() {
     setLoading(true);
     try {
       const dateValue = `${dateFound.getFullYear()}-${String(dateFound.getMonth() + 1).padStart(2, '0')}-${String(dateFound.getDate()).padStart(2, '0')}T${String(dateFound.getHours()).padStart(2, '0')}:${String(dateFound.getMinutes()).padStart(2, '0')}`;
-      await submitReport({ name, description, itemType, categoryCode, branchCode, locationCode, dateFound: dateValue, image });
+      await submitReport({ name, description, itemType, categoryCode, branchCode, locationCode, dateFound: dateValue, publicColor, image });
       setSuccess('Report submitted. Your item is now in the open campus listings.');
-      setName(''); setDescription(''); setImage(null);
+      setName(''); setDescription(''); setImage(null); setPublicColor('Unknown');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not submit this report.');
       if (reason && typeof reason === 'object' && 'status' in reason && reason.status === 401) {
@@ -96,7 +102,8 @@ export default function ReportScreen() {
               {(['lost', 'found'] as const).map((kind) => <Pressable key={kind} onPress={() => setItemType(kind)} style={[styles.segmentButton, itemType === kind && styles.segmentActive]}><Text style={[styles.segmentText, itemType === kind && styles.segmentTextActive]}>{kind === 'lost' ? 'I lost it' : 'I found it'}</Text></Pressable>)}
             </View>
             <Field label="Item name" value={name} onChangeText={setName} placeholder="e.g. Black water bottle" />
-            <Field label="Description" value={description} onChangeText={setDescription} placeholder="Color, brand, markings, or other details" multiline />
+            <Field label="Description" value={description} onChangeText={setDescription} placeholder="Brand, markings, or other details" multiline />
+            <View style={styles.field}><Text style={styles.label}>Public color</Text><Picker selectedValue={publicColor} onValueChange={(value) => setPublicColor(value as PublicColor)} style={styles.picker}>{PUBLIC_COLORS.map((color) => <Picker.Item key={color} label={color} value={color} />)}</Picker></View>
             <View style={styles.field}><Text style={styles.label}>Category</Text><Picker selectedValue={categoryCode} onValueChange={setCategoryCode} style={styles.picker}><Picker.Item label="Choose category" value="" />{categories.map((entry) => <Picker.Item key={entry.category_code} label={entry.name} value={entry.category_code} />)}</Picker></View>
             <View style={styles.field}><Text style={styles.label}>School branch</Text><Picker selectedValue={branchCode} onValueChange={(value) => { setBranchCode(value); setLocationCode(''); setLocations([]); }} style={styles.picker}><Picker.Item label="Choose branch" value="" />{branches.map((entry) => <Picker.Item key={entry.branch_code} label={entry.name} value={entry.branch_code} />)}</Picker></View>
             <View style={styles.field}><Text style={styles.label}>Location</Text><Picker selectedValue={locationCode} onValueChange={setLocationCode} enabled={Boolean(branchCode)} style={styles.picker}><Picker.Item label={branchCode ? 'Choose location' : 'Choose a branch first'} value="" />{locations.map((entry) => <Picker.Item key={entry.location_code} label={entry.name} value={entry.location_code} />)}</Picker></View>

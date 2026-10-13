@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS items (
     branch_code VARCHAR(15),
     location_code VARCHAR(15),
     item_file_path VARCHAR(255),
+    public_color VARCHAR(50),
     date_found DATETIME, -- timestamp the item was found by the reporter
     date_reported DATETIME DEFAULT CURRENT_TIMESTAMP, -- timestamp the item was reported by the reporter
     close_at DATETIME,
@@ -71,12 +72,23 @@ CREATE TABLE IF NOT EXISTS claimed_items ( -- new table
     claimed_item_id INT AUTO_INCREMENT PRIMARY KEY,
     claimed_item_code VARCHAR(15) UNIQUE,
     item_code VARCHAR(15) NOT NULL UNIQUE, -- Foreign
-    claimer_first_name VARCHAR(50) NOT NULL, -- NEW CLAIMER FIRST NAME
-    claimer_middle_name VARCHAR(50) DEFAULT NULL, -- NEW CLAIMER MIDDLE NAME
-    claimer_last_name VARCHAR(50) NOT NULL, -- NEW CLAIMER LAST NAME
+    claimer_first_name VARCHAR(50) NOT NULL,
+    claimer_middle_name VARCHAR(50) DEFAULT NULL,
+    claimer_last_name VARCHAR(50) NOT NULL,
     contact_number VARCHAR(20) NOT NULL,
-    claimProof_file_path VARCHAR(255),
+    claimant_email VARCHAR(254) NOT NULL,
+    claimant_affiliation ENUM('Student', 'Faculty', 'Staff', 'Visitor') NOT NULL,
+    last_seen_location VARCHAR(255),
+    last_seen_date_time DATETIME,
+    item_description TEXT NOT NULL,
+    identifying_features TEXT NOT NULL,
+    contents TEXT,
+    additional_evidence TEXT,
+    evidence_file_path VARCHAR(255),
+    status ENUM('Pending', 'Under Review', 'Approved', 'Rejected', 'Returned') NOT NULL DEFAULT 'Pending',
+    staff_notes TEXT,
     date_claimed DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (item_code) REFERENCES items(item_code)
 );
 
@@ -145,92 +157,41 @@ CREATE VIEW vw_openAllItems AS
 SELECT
 	i.item_id,
 	i.item_code,
-	i.NAME AS `name`,
-	i.DESCRIPTION AS `description`,
 	i.item_type,
-	i.STATUS AS `status`,
+	CASE
+		WHEN i.STATUS <> 'open' THEN 'Closed'
+		WHEN cl.status IN ('Pending', 'Under Review') THEN 'Under Verification'
+		WHEN cl.status = 'Approved' THEN 'Unavailable'
+		WHEN cl.status = 'Rejected' THEN 'Contact Staff'
+		WHEN cl.status = 'Returned' THEN 'Closed'
+		ELSE 'Available'
+	END AS status,
 	i.category_code,
-	c.name AS `categoryName`,
-	c.description AS `categoryDescription`,
+	c.name AS categoryName,
+	i.public_color,
 	i.branch_code,
-	b.name AS `branchName`,
-	i.location_code,
-	l.name AS `locationName`,
-	l.description AS `locationDescription`,
-	i.item_file_path,
-	i.date_found,
-	i.date_reported	
+	b.name AS branchName,
+	DATE(i.date_found) AS date_found,
+	i.date_reported
 FROM items AS i
-LEFT JOIN categories AS c
-	ON i.category_code = c.category_code
-LEFT JOIN branches AS b
-	ON i.branch_code = b.branch_code
-LEFT JOIN locations AS l
-	ON i.location_code = l.location_code
-WHERE STATUS = 'open';
+LEFT JOIN categories AS c ON i.category_code = c.category_code
+LEFT JOIN branches AS b ON i.branch_code = b.branch_code
+LEFT JOIN (
+	SELECT item_code, status
+	FROM claimed_items
+) AS cl ON cl.item_code = i.item_code
+WHERE i.STATUS = 'open' OR cl.status IN ('Pending', 'Under Review', 'Rejected');
 -- SELECT * FROM vw_openAllItems;
 
 -- 2
 DROP VIEW IF EXISTS vw_openLostItems;
 CREATE VIEW vw_openLostItems AS
-SELECT
-	i.item_id,
-	i.item_code,
-	i.NAME AS `name`,
-	i.DESCRIPTION AS `description`,
-	i.item_type,
-	i.STATUS AS `status`,
-	i.category_code,
-	c.name AS `categoryName`,
-	c.description AS `categoryDescription`,
-	i.branch_code,
-	b.name AS `branchName`,
-	i.location_code,
-	l.name AS `locationName`,
-	l.description AS `locationDescription`,
-	i.item_file_path,
-	i.date_found,
-	i.date_reported	
-FROM items AS i
-LEFT JOIN categories AS c
-	ON i.category_code = c.category_code
-LEFT JOIN branches AS b
-	ON i.branch_code = b.branch_code
-LEFT JOIN locations AS l
-	ON i.location_code = l.location_code
-WHERE STATUS = 'open' AND item_type = 'lost';
--- SELECT * FROM vw_openLostItems;
+SELECT * FROM vw_openAllItems WHERE item_type = 'lost';
 
 -- 3
 DROP VIEW IF EXISTS vw_openFoundItems;
 CREATE VIEW vw_openFoundItems AS
-SELECT
-	i.item_id,
-	i.item_code,
-	i.NAME AS `name`,
-	i.DESCRIPTION AS `description`,
-	i.item_type,
-	i.STATUS AS `status`,
-	i.category_code,
-	c.name AS `categoryName`,
-	c.description AS `categoryDescription`,
-	i.branch_code,
-	b.name AS `branchName`,
-	i.location_code,
-	l.name AS `locationName`,
-	l.description AS `locationDescription`,
-	i.item_file_path,
-	i.date_found,
-	i.date_reported	
-FROM items AS i
-LEFT JOIN categories AS c
-	ON i.category_code = c.category_code
-LEFT JOIN branches AS b
-	ON i.branch_code = b.branch_code
-LEFT JOIN locations AS l
-	ON i.location_code = l.location_code
-WHERE STATUS = 'open' AND item_type = 'found';
--- SELECT * FROM vw_openFoundItems;
+SELECT * FROM vw_openAllItems WHERE item_type = 'found';
 
 -- 4
 DROP VIEW IF EXISTS vw_closedAllItems;
@@ -496,7 +457,8 @@ CREATE PROCEDURE sp_submit_report(
     IN p_branch_code VARCHAR(15),
     IN p_location_code VARCHAR(15),
     IN p_item_file_path VARCHAR(255),
-    IN p_date_found DATETIME
+    IN p_date_found DATETIME,
+    IN p_public_color VARCHAR(50)
 )
 BEGIN
     INSERT INTO items (
@@ -508,7 +470,8 @@ BEGIN
         branch_code, 
         location_code, 
         item_file_path,
-        date_found
+        date_found,
+        public_color
     )
     VALUES (
         p_name, 
@@ -519,7 +482,8 @@ BEGIN
         p_branch_code, 
         p_location_code, 
         p_item_file_path,
-        p_date_found
+        p_date_found,
+        p_public_color
     );
 END$$
 
@@ -536,24 +500,75 @@ CREATE PROCEDURE sp_insert_into_claimed_items(
     IN p_claimer_middle_name VARCHAR(50),
     IN p_claimer_last_name VARCHAR(50),
     IN p_contact_number VARCHAR(20),
-    IN p_claimProof_file_path VARCHAR(255)
+    IN p_claimant_email VARCHAR(254),
+    IN p_claimant_affiliation ENUM('Student', 'Faculty', 'Staff', 'Visitor'),
+    IN p_last_seen_location VARCHAR(255),
+    IN p_last_seen_date_time DATETIME,
+    IN p_item_description TEXT,
+    IN p_identifying_features TEXT,
+    IN p_contents TEXT,
+    IN p_additional_evidence TEXT,
+    IN p_evidence_file_path VARCHAR(255)
 )
-BEGIN    
+BEGIN
+    DECLARE v_existing_claim INT DEFAULT 0;
+    DECLARE v_item_status VARCHAR(15);
+
+    SELECT COUNT(*) INTO v_existing_claim
+    FROM claimed_items
+    WHERE item_code = p_item_code;
+
+    SELECT STATUS INTO v_item_status
+    FROM items
+    WHERE item_code = p_item_code;
+
+    IF v_existing_claim > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'A claim already exists for this item.';
+    END IF;
+
+    IF v_item_status IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'The selected item does not exist.';
+    END IF;
+
+    IF v_item_status <> 'open' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'The selected item is not available for claiming.';
+    END IF;
+
     INSERT INTO claimed_items (
-        item_code, 
-        claimer_first_name, 
-        claimer_middle_name, 
-        claimer_last_name, 
-        contact_number, 
-        claimProof_file_path
-    )
-    VALUES (
-        p_item_code, 
-        p_claimer_first_name, 
-        p_claimer_middle_name, 
-        p_claimer_last_name, 
-        p_contact_number, 
-        p_claimProof_file_path
+        item_code,
+        claimer_first_name,
+        claimer_middle_name,
+        claimer_last_name,
+        contact_number,
+        claimant_email,
+        claimant_affiliation,
+        last_seen_location,
+        last_seen_date_time,
+        item_description,
+        identifying_features,
+        contents,
+        additional_evidence,
+        evidence_file_path,
+        status
+    ) VALUES (
+        p_item_code,
+        p_claimer_first_name,
+        p_claimer_middle_name,
+        p_claimer_last_name,
+        p_contact_number,
+        p_claimant_email,
+        p_claimant_affiliation,
+        p_last_seen_location,
+        p_last_seen_date_time,
+        p_item_description,
+        p_identifying_features,
+        p_contents,
+        p_additional_evidence,
+        p_evidence_file_path,
+        'Pending'
     );
 END$$
 
@@ -879,11 +894,15 @@ DROP TRIGGER IF EXISTS trg_auto_resolved_claimed_items;
 DELIMITER $$
 
 CREATE TRIGGER trg_auto_resolved_claimed_items
-AFTER INSERT ON claimed_items
+AFTER UPDATE ON claimed_items
 FOR EACH ROW
+WHEN OLD.status <> NEW.status AND NEW.status IN ('Approved', 'Returned')
 BEGIN
     UPDATE items
-    SET STATUS = 'closed'
+    SET STATUS = CASE NEW.status
+        WHEN 'Approved' THEN 'resolved'
+        WHEN 'Returned' THEN 'closed'
+    END
     WHERE item_code = NEW.item_code;
 END$$
 
@@ -1361,10 +1380,16 @@ CREATE EVENT ev_auto_close_items
 ON SCHEDULE EVERY 1 HOUR
 DO
 BEGIN
-    UPDATE items
+    UPDATE items AS i
     SET STATUS = 'closed'
-    WHERE STATUS = 'open'
-      AND close_at <= NOW();
+    WHERE i.STATUS = 'open'
+      AND i.close_at <= NOW()
+      AND NOT EXISTS (
+          SELECT 1
+          FROM claimed_items AS cl
+          WHERE cl.item_code = i.item_code
+            AND cl.status IN ('Pending', 'Under Review')
+      );
 END$$
 
 DELIMITER ;
