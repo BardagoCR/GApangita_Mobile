@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton, Eyebrow, Field, Heading, Notice, Page } from '@/src/components/ui';
@@ -35,16 +35,32 @@ export default function LoginScreen() {
   return (
     <Page>
       <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.back}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={10}
+        >
+          
+          <Ionicons name="arrow-back" size={18} color={colors.maroon} />
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <Text onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={18} color={colors.maroon} />  Back</Text>
-            <View style={styles.mark}><Ionicons name="key" size={23} color={colors.maroonDark} /></View>
+          
+          <View style={styles.brandRow}>
+            <View style={styles.mark}>
+              <Ionicons name="key" size={23} color={colors.maroonDark} />
+            </View>
             <Eyebrow>STAFF ACCESS</Eyebrow>
-            <Heading>Welcome back.</Heading>
+          </View> 
+            <Heading>Welcome back!</Heading>
             <Text style={styles.copy}>Sign in to report an item, submit a claim, or manage campus records.</Text>
             {error ? <Notice tone="error">{error}</Notice> : null}
-            <Field label="Username" value={username} onChangeText={setUsername} placeholder="Your username" />
-            <Field label="Password" value={password} onChangeText={setPassword} placeholder="Your password" secureTextEntry />
+            <Field label="Username" value={username} onChangeText={setUsername} placeholder="e.g. jdelacruz" />
+            <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secureTextEntry />
             <ActionButton title="Sign in" onPress={handleLogin} disabled={!username.trim() || !password} loading={loading} />
           </ScrollView>
         </KeyboardAvoidingView>
@@ -56,8 +72,44 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', padding: 22, gap: 16 },
-  back: { color: colors.maroon, fontWeight: '800', fontSize: 13, marginBottom: 24 },
-  mark: { width: 54, height: 54, borderRadius: 16, backgroundColor: colors.yellow, alignItems: 'center', justifyContent: 'center' },
-  copy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: -7 },
+  content: {
+    justifyContent: 'center',
+    padding: 22,
+    paddingTop: 56,
+    gap: 16,
+  },
+  back: {
+    position: 'absolute',
+    top: 12,
+    left: 22,
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  backText: {
+    color: colors.maroon,
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  mark: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: colors.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  brandRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 12,
+  },
+  copy: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: -7,
+  },
 });

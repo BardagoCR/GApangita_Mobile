@@ -69,21 +69,103 @@ function MenuRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMa
   );
 }
 
+const card = {
+  borderWidth: 1,
+  borderColor: colors.line,
+  backgroundColor: colors.white,
+} as const;
+
 const styles = StyleSheet.create({
+  // Layout
   safe: { flex: 1 },
-  content: { padding: 20, gap: 14 },
-  panel: { marginTop: 8, padding: 18, borderRadius: 13, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, gap: 12 },
-  icon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.maroonLight },
-  panelTitle: { color: colors.ink, fontSize: 17, fontWeight: '800' },
-  panelCopy: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  profile: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 12, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, gap: 12, marginTop: 4 },
-  avatar: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.yellow, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: colors.maroonDark, fontSize: 18, fontWeight: '900' },
+  content: {
+    padding: 20,
+    gap: 14,
+  },
+
+  // Panel
+  panel: {
+    ...card,
+    marginTop: 8,
+    padding: 18,
+    borderRadius: 13,
+    gap: 12,
+  },
+  icon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.maroonLight,
+  },
+  panelTitle: {
+    color: colors.ink,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  panelCopy: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  // Profile
+  profile: {
+    ...card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 12,
+    gap: 12,
+    marginTop: 4,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    backgroundColor: colors.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: colors.maroonDark,
+    fontSize: 18,
+    fontWeight: '900',
+  },
   profileText: { gap: 3 },
-  name: { color: colors.ink, fontWeight: '800', fontSize: 16 },
-  role: { color: colors.muted, fontSize: 12 },
-  sectionLabel: { color: colors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1, marginTop: 13 },
-  menuRow: { minHeight: 53, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 5, borderBottomWidth: 1, borderBottomColor: colors.line },
-  menuLabel: { flex: 1, color: colors.ink, fontSize: 14, fontWeight: '700' },
+  name: {
+    color: colors.ink,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  role: {
+    color: colors.muted,
+    fontSize: 12,
+  },
+
+  // Menu
+  sectionLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginTop: 13,
+  },
+  menuRow: {
+    minHeight: 53,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  menuLabel: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '700',
+  },
   signout: { marginTop: 18 },
 });
