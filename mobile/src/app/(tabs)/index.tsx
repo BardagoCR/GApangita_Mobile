@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemCard } from '@/src/components/ItemCard';
@@ -124,27 +124,33 @@ export default function FindScreen() {
         </View>
 
         <View style={styles.pickerRow}>
-          <Picker selectedValue={categoryCode} onValueChange={(value) => { setCategoryCode(value); setPage(1); }} style={styles.picker}>
-            <Picker.Item label="All categories" value="" />
-            {categories.map((category) => (
-              <Picker.Item key={category.category_code} label={category.name} value={category.category_code} />
-            ))}
-          </Picker>
-
-          <Picker selectedValue={branchCode} onValueChange={(value) => { setBranchCode(value); setLocationCode(''); setLocations([]); setPage(1); }} style={styles.picker}>
-            <Picker.Item label="All branches" value="" />
-            {branches.map((branch) => (
-              <Picker.Item key={branch.branch_code} label={branch.name} value={branch.branch_code} />
-            ))}
-          </Picker>
-
-          {branchCode ? (
-            <Picker selectedValue={locationCode} onValueChange={(value) => { setLocationCode(value); setPage(1); }} style={styles.picker}>
-              <Picker.Item label="All locations" value="" />
-              {locations.map((location) => (
-                <Picker.Item key={location.location_code} label={location.name} value={location.location_code} />
+          <View style={styles.pickerPill}>
+            <Picker selectedValue={categoryCode} onValueChange={(value) => { setCategoryCode(value); setPage(1); }} style={styles.picker}>
+              <Picker.Item label="All categories" value="" />
+              {categories.map((category) => (
+                <Picker.Item key={category.category_code} label={category.name} value={category.category_code} />
               ))}
             </Picker>
+          </View>
+
+          <View style={styles.pickerPill}>
+            <Picker selectedValue={branchCode} onValueChange={(value) => { setBranchCode(value); setLocationCode(''); setLocations([]); setPage(1); }} style={styles.picker}>
+              <Picker.Item label="All branches" value="" />
+              {branches.map((branch) => (
+                <Picker.Item key={branch.branch_code} label={branch.name} value={branch.branch_code} />
+              ))}
+            </Picker>
+          </View>
+
+          {branchCode ? (
+            <View style={styles.pickerPill}>
+              <Picker selectedValue={locationCode} onValueChange={(value) => { setLocationCode(value); setPage(1); }} style={styles.picker}>
+                <Picker.Item label="All locations" value="" />
+                {locations.map((location) => (
+                  <Picker.Item key={location.location_code} label={location.name} value={location.location_code} />
+                ))}
+              </Picker>
+            </View>
           ) : null}
         </View>
 
@@ -177,23 +183,18 @@ export default function FindScreen() {
                 <Text style={styles.brand}>GApangita<Text style={styles.brandQuestion}>?</Text></Text>
               </View>
             
-            <LinearGradient
-              colors={[colors.maroonDark, colors.maroon]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.hero}
+              <LinearGradient
+                colors={[colors.maroonDark, colors.maroon]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.hero}
               >
-            
-
-              <View style={styles.hero}>
                 <Text style={styles.heroKicker}>LOST & FOUND · CAMPUS</Text>
-                <Text style={styles.heroTitle}>Let’s get it{ '\n' }back to you.</Text>
+                <Text style={styles.heroTitle}>Let’s get it{'\n'}back to you.</Text>
                 <Text style={styles.heroCopy}>Search the campus listings or report something you found.</Text>
-                <View style={styles.heroStamp}><Ionicons name="cube" size={23} color={colors.maroonDark} /></View>
-              </View>
-              
+                <Image source={require('@/assets/images/logo.png')} style={styles.logo} />
               </LinearGradient>
-
+              
               {renderSearchFilters()}
             </View>
           }
@@ -221,8 +222,13 @@ export default function FindScreen() {
 const field = {
   borderWidth: 1,
   borderColor: colors.line,
-  borderRadius: 10,
+  borderRadius: 14,
   backgroundColor: colors.white,
+  shadowColor: '#000',
+  shadowOpacity: 0.08,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 3,
 } as const;
 
 const styles = StyleSheet.create({
@@ -284,16 +290,14 @@ const styles = StyleSheet.create({
     maxWidth: '75%',
     marginTop: 8,
   },
-  heroStamp: {
+  logo: {
     position: 'absolute',
     right: 20,
     bottom: 18,
     width: 54,
     height: 54,
     borderRadius: 16,
-    backgroundColor: colors.yellow,
-    alignItems: 'center',
-    justifyContent: 'center',
+    resizeMode: 'contain',
     transform: [{ rotate: '7deg' }],
   },
 
@@ -306,11 +310,11 @@ const styles = StyleSheet.create({
   },
   searchBox: {
     ...field,
-    minHeight: 50,
-    paddingHorizontal: 13,
+    height: 52,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
@@ -320,10 +324,10 @@ const styles = StyleSheet.create({
   },
   detailInput: {
     ...field,
-    height: 45,
-    paddingHorizontal: 13,
+    height: 52,
+    paddingHorizontal: 16,
     color: colors.ink,
-    fontSize: 13,
+    fontSize: 14,
   },
 
   // Type chips
@@ -333,12 +337,17 @@ const styles = StyleSheet.create({
   },
   typeChip: {
     minHeight: 35,
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.line,
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
     paddingHorizontal: 14,
     justifyContent: 'center',
-    backgroundColor: colors.white,
   },
   typeChipActive: {
     borderColor: colors.maroon,
@@ -353,13 +362,29 @@ const styles = StyleSheet.create({
   typeTextActive: { color: colors.white },
 
   // Pickers
-  pickerRow: {
-    ...field,
-    overflow: 'hidden',
+ pickerRow: {
+  gap: 12,
+  },
+  pickerPill: {
+    height: 52,
+    color: colors.ink,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+    paddingLeft: 18,
+    paddingRight: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   picker: {
-    color: colors.ink,
     height: 48,
+    color: colors.ink,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
 
   // Results
