@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionButton, Field, Heading, Notice, Page } from '@/src/components/ui';
+import { ActionButton, Field, Heading, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { useAuth } from '@/src/features/auth/AuthContext';
 import { restoreItem } from '@/src/services/api/gapangita';
 import { colors } from '@/src/theme/colors';
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
   gate: { flex: 1, padding: 20, justifyContent: 'center' },
-  content: { padding: 18, gap: 15 },
+  content: { padding: 18, paddingBottom: TAB_BAR_CONTENT_PADDING, gap: 15 },
   back: { color: colors.maroon, fontWeight: '800', fontSize: 13 },
   kicker: { color: colors.coral, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
 });

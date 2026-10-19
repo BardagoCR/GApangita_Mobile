@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionButton, Field, Heading, Notice, Page } from '@/src/components/ui';
+import { ActionButton, Field, Heading, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { useAuth } from '@/src/features/auth/AuthContext';
 import { getClaimDetails, getClaimEvidence, updateClaimStatus } from '@/src/services/api/gapangita';
 import type { Claim } from '@/src/types/api';
@@ -122,7 +122,7 @@ export default function ClaimDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 }, gate: { flex: 1, padding: 20, justifyContent: 'center' }, content: { padding: 18, gap: 16 }, contentStack: { gap: 16 },
+  safe: { flex: 1 }, gate: { flex: 1, padding: 20, justifyContent: 'center' }, content: { padding: 18, paddingBottom: TAB_BAR_CONTENT_PADDING, gap: 16 }, contentStack: { gap: 16 },
   back: { color: colors.maroon, fontSize: 13, fontWeight: '800', paddingVertical: 5 }, loader: { padding: 30 }, itemCode: { color: colors.muted, fontSize: 11, fontWeight: '700' },
   section: { gap: 8, backgroundColor: colors.white, borderRadius: 12, borderWidth: 1, borderColor: colors.line, padding: 15 }, sectionTitle: { color: colors.maroonDark, fontSize: 13, fontWeight: '900' },
   name: { color: colors.ink, fontSize: 16, fontWeight: '800' }, detail: { color: colors.ink, fontSize: 12, lineHeight: 18 }, statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },

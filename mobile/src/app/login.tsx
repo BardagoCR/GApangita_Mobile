@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionButton, Eyebrow, Field, Heading, Notice, Page } from '@/src/components/ui';
+import { ActionButton, Eyebrow, Field, Heading, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { useAuth } from '@/src/features/auth/AuthContext';
 import { colors } from '@/src/theme/colors';
 
@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 22,
     paddingTop: 56,
+    paddingBottom: TAB_BAR_CONTENT_PADDING,
     gap: 16,
   },
   back: {

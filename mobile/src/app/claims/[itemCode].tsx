@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionButton, Field, Heading, Notice, Page } from '@/src/components/ui';
+import { ActionButton, Field, Heading, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { submitClaim } from '@/src/services/api/gapangita';
 import type { ImageAttachment } from '@/src/types/api';
 import { colors } from '@/src/theme/colors';
@@ -132,10 +132,22 @@ export default function ClaimScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 }, flex: { flex: 1 }, content: { padding: 18, gap: 15 },
+  safe: { flex: 1 }, flex: { flex: 1 }, content: { padding: 18, paddingBottom: TAB_BAR_CONTENT_PADDING, gap: 15 },
   label: { color: colors.ink, fontSize: 13, fontWeight: '700' }, helper: { color: colors.muted, fontSize: 11, lineHeight: 16 },
   affiliationWrap: { gap: 7 }, affiliationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  affiliation: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
+  affiliation: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
   affiliationActive: { borderColor: colors.maroon, backgroundColor: colors.maroonLight }, affiliationText: { color: colors.ink, fontSize: 12, fontWeight: '700' }, affiliationTextActive: { color: colors.maroonDark },
   evidenceField: { gap: 7 }, evidenceActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, evidencePreview: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   preview: { width: 90, height: 90, borderRadius: 9, backgroundColor: colors.maroonLight },

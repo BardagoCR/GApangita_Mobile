@@ -18,6 +18,7 @@ export type SearchFilters = {
   type?: 'all' | 'lost' | 'found';
   categoryCode?: string;
   branchCode?: string;
+  locationCode?: string;
   status?: 'open' | 'closed';
   unarchivePage?: boolean;
   browseAll?: boolean;
@@ -47,6 +48,7 @@ export async function searchItems(filters: SearchFilters = {}) {
   if (filters.type && filters.type !== 'all') query.set('filter', filters.type);
   if (filters.categoryCode) query.set('category_code', filters.categoryCode);
   if (filters.branchCode) query.set('branch_code', filters.branchCode);
+  if (filters.locationCode) query.set('location_code', filters.locationCode);
   if (filters.status) query.set('status', filters.status);
   if (filters.unarchivePage) query.set('unarchive_page', '1');
   if (filters.browseAll) query.set('browse_all', '1');
