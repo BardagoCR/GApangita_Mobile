@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionButton, Notice, Page } from '@/src/components/ui';
+import { ActionButton, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { request } from '@/src/services/api/client';
 import type { Item } from '@/src/types/api';
 import { colors } from '@/src/theme/colors';
@@ -78,7 +78,7 @@ function DetailRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMa
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 18, gap: 15 },
+  content: { padding: 18, paddingBottom: TAB_BAR_CONTENT_PADDING, gap: 15 },
   back: { color: colors.maroon, fontSize: 13, fontWeight: '800', paddingVertical: 5 },
   loader: { padding: 30 },
   details: { gap: 14, backgroundColor: colors.white, borderRadius: 14, borderWidth: 1, borderColor: colors.line, padding: 17 },

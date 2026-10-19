@@ -1,13 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionButton, Field, Heading, Notice, Page } from '@/src/components/ui';
+import { ActionButton, Field, Heading, Notice, Page, SelectField, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { useAuth } from '@/src/features/auth/AuthContext';
 import { getBranches, getCategories, getLocations, submitReport } from '@/src/services/api/gapangita';
 import type { Branch, Category, ImageAttachment, Location, PublicColor } from '@/src/types/api';
@@ -103,10 +102,44 @@ export default function ReportScreen() {
             </View>
             <Field label="Item name" value={name} onChangeText={setName} placeholder="e.g. Black water bottle" />
             <Field label="Description" value={description} onChangeText={setDescription} placeholder="Brand, markings, or other details" multiline />
-            <View style={styles.field}><Text style={styles.label}>Public color</Text><Picker selectedValue={publicColor} onValueChange={(value) => setPublicColor(value as PublicColor)} style={styles.picker}>{PUBLIC_COLORS.map((color) => <Picker.Item key={color} label={color} value={color} />)}</Picker></View>
-            <View style={styles.field}><Text style={styles.label}>Category</Text><Picker selectedValue={categoryCode} onValueChange={setCategoryCode} style={styles.picker}><Picker.Item label="Choose category" value="" />{categories.map((entry) => <Picker.Item key={entry.category_code} label={entry.name} value={entry.category_code} />)}</Picker></View>
-            <View style={styles.field}><Text style={styles.label}>School branch</Text><Picker selectedValue={branchCode} onValueChange={(value) => { setBranchCode(value); setLocationCode(''); setLocations([]); }} style={styles.picker}><Picker.Item label="Choose branch" value="" />{branches.map((entry) => <Picker.Item key={entry.branch_code} label={entry.name} value={entry.branch_code} />)}</Picker></View>
-            <View style={styles.field}><Text style={styles.label}>Location</Text><Picker selectedValue={locationCode} onValueChange={setLocationCode} enabled={Boolean(branchCode)} style={styles.picker}><Picker.Item label={branchCode ? 'Choose location' : 'Choose a branch first'} value="" />{locations.map((entry) => <Picker.Item key={entry.location_code} label={entry.name} value={entry.location_code} />)}</Picker></View>
+            <SelectField
+              label="Public color"
+              value={publicColor}
+              onChange={(value) => setPublicColor(value as PublicColor)}
+              options={PUBLIC_COLORS.map((color) => ({ label: color, value: color }))}
+            />
+            <SelectField
+              label="Category"
+              value={categoryCode}
+              onChange={setCategoryCode}
+              options={[
+                { label: 'Choose category', value: '' },
+                ...categories.map((entry) => ({ label: entry.name, value: entry.category_code })),
+              ]}
+            />
+            <SelectField
+              label="School branch"
+              value={branchCode}
+              onChange={(value) => {
+                setBranchCode(value);
+                setLocationCode('');
+                setLocations([]);
+              }}
+              options={[
+                { label: 'Choose branch', value: '' },
+                ...branches.map((entry) => ({ label: entry.name, value: entry.branch_code })),
+              ]}
+            />
+            <SelectField
+              label="Location"
+              value={locationCode}
+              onChange={setLocationCode}
+              disabled={!branchCode}
+              options={[
+                { label: branchCode ? 'Choose location' : 'Choose a branch first', value: '' },
+                ...locations.map((entry) => ({ label: entry.name, value: entry.location_code })),
+              ]}
+            />
             <View style={styles.field}>
               <Text style={styles.label}>Date and time {itemType === 'found' ? 'found' : 'last seen'}</Text>
               <View style={styles.dateRow}>
@@ -127,21 +160,49 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
-  content: { padding: 18, paddingBottom: 30, gap: 15 },
+  content: { padding: 18, paddingBottom: TAB_BAR_CONTENT_PADDING, gap: 12 },
   headingBlock: { gap: 5 },
   kicker: { color: colors.coral, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
   help: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   segment: { flexDirection: 'row', padding: 4, borderRadius: 11, backgroundColor: colors.maroonLight, gap: 4 },
   segmentButton: { flex: 1, height: 39, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   segmentActive: { backgroundColor: colors.maroon },
-  segmentText: { color: colors.maroonDark, fontSize: 13, fontWeight: '800', textTransform: 'capitalize' },
-  segmentTextActive: { color: colors.white },
-  field: { gap: 5 },
-  label: { color: colors.ink, fontSize: 13, fontWeight: '700' },
-  picker: { minHeight: 49, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: 10, color: colors.ink },
-  dateButton: { minHeight: 49, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  segmentText: { 
+    color: colors.maroonDark, 
+    fontSize: 13, 
+    fontWeight: '800', 
+    textTransform: 'capitalize' 
+  },
+  segmentTextActive: { 
+    color: colors.white 
+  },
+  field: { 
+    gap: 7 
+  },
+  label: { 
+    color: colors.ink, 
+    fontSize: 13, 
+    fontWeight: '700' 
+  },
+  dateButton: {
+    flex: 1,
+    minHeight: 52,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
   dateRow: { flexDirection: 'row', gap: 8 },
-  dateText: { color: colors.ink, fontSize: 13 },
+  dateText: { flex: 1, color: colors.ink, fontSize: 13 },
   photoActions: { flexDirection: 'row', gap: 9 },
   previewWrap: { position: 'relative' },
   preview: { height: 180, borderRadius: 10, backgroundColor: colors.maroonLight },
