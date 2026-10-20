@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,7 +18,7 @@ const PUBLIC_COLORS: PublicColor[] = [
 ];
 
 export default function ReportScreen() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, authError, refreshAuth } = useAuth();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [itemType, setItemType] = useState<'lost' | 'found'>('lost');
@@ -33,6 +33,7 @@ export default function ReportScreen() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -62,6 +63,7 @@ export default function ReportScreen() {
   }
 
   async function handleSubmit() {
+    if (submitting.current || loading || !user || authLoading || authError) return;
     setError('');
     setSuccess('');
     if (!name.trim() || !description.trim() || !categoryCode || !branchCode || !locationCode) {
@@ -71,6 +73,7 @@ export default function ReportScreen() {
     if (description.trim().length < 8) { setError('Please add at least 8 characters to the description.'); return; }
     if (itemType === 'found' && !image) { setError('Add a photo for a found item.'); return; }
 
+    submitting.current = true;
     setLoading(true);
     try {
       const dateValue = `${dateFound.getFullYear()}-${String(dateFound.getMonth() + 1).padStart(2, '0')}-${String(dateFound.getDate()).padStart(2, '0')}T${String(dateFound.getHours()).padStart(2, '0')}:${String(dateFound.getMinutes()).padStart(2, '0')}`;
@@ -82,10 +85,17 @@ export default function ReportScreen() {
       if (reason && typeof reason === 'object' && 'status' in reason && reason.status === 401) {
         router.push({ pathname: '/login', params: { returnTo: '/(tabs)/report' } });
       }
-    } finally { setLoading(false); }
+    } finally { submitting.current = false; setLoading(false); }
   }
 
-  if (!authLoading && !user) {
+  if (authLoading || authError) {
+    return <Page><SafeAreaView edges={['top']} style={styles.safe}><View style={styles.gate}>
+      <Notice>{authLoading ? 'Checking your session...' : authError}</Notice>
+      {authError ? <ActionButton title="Retry session check" onPress={() => void refreshAuth()} disabled={authLoading} /> : null}
+    </View></SafeAreaView></Page>;
+  }
+
+  if (!user) {
     return <Page><SafeAreaView edges={['top']} style={styles.safe}><View style={styles.gate}><Heading>Sign in to report</Heading><Text style={styles.help}>A staff account is required to add an item to the campus listings.</Text><ActionButton title="Sign in" onPress={() => router.push({ pathname: '/login', params: { returnTo: '/(tabs)/report' } })} /></View></SafeAreaView></Page>;
   }
 

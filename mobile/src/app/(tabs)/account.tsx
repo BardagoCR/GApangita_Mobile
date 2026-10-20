@@ -9,7 +9,7 @@ import { useAuth } from '@/src/features/auth/AuthContext';
 import { colors } from '@/src/theme/colors';
 
 export default function AccountScreen() {
-  const { user, isLoading, signOut } = useAuth();
+  const { user, isLoading, authError, refreshAuth, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
 
   async function handleSignOut() {
@@ -17,7 +17,7 @@ export default function AccountScreen() {
     try {
       await signOut();
     } catch (error) {
-      Alert.alert('Sign out issue', error instanceof Error ? error.message : 'Your local session was cleared.');
+      Alert.alert('Sign out issue', error instanceof Error ? error.message : 'Unable to confirm sign-out. Please retry.');
     } finally {
       setSigningOut(false);
     }
@@ -29,12 +29,13 @@ export default function AccountScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <Eyebrow>YOUR ACCOUNT</Eyebrow>
           <Heading>Account</Heading>
+          {authError ? <><Notice tone="error">{authError}</Notice><ActionButton title="Retry session check" onPress={() => void refreshAuth()} disabled={isLoading} /></> : null}
           {isLoading ? <Notice>Checking your sign-in status…</Notice> : null}
           {!isLoading && !user ? (
             <View style={styles.panel}>
               <View style={styles.icon}><Ionicons name="person-outline" size={22} color={colors.maroon} /></View>
               <Text style={styles.panelTitle}>Sign in for staff actions</Text>
-              <Text style={styles.panelCopy}>Browsing is open to everyone. Sign in to report items, submit claims, or manage the archive.</Text>
+              <Text style={styles.panelCopy}>Browsing is open to everyone. Sign in to report items or manage the archive. Claims are submitted while signed out.</Text>
               <ActionButton title="Sign in" onPress={() => router.push('/login')} />
             </View>
           ) : null}

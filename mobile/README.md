@@ -38,3 +38,14 @@ Use Expo Go on a phone or select an installed Android emulator. For a physical d
 The client uses the current cookie-session and CSRF API. React Native cookie persistence must be tested on the target Android and iOS devices. The API's archive search is now protected, the auth-status response includes the user's role, and `GET /api/items/<item_code>` supports open-item details. A future production hardening step should add a dedicated mobile token/refresh flow and HTTPS rather than relying on browser-style sessions.
 
 The backend still has no general item edit or delete endpoint. The existing claim and archive/restore procedures are the supported status-changing workflows.
+## Connection recovery and phone checks
+
+The client uses 10-second request deadlines and up to two retries for transient read failures (about 32 seconds maximum, including backoff). Uploads have a 60-second deadline. Writes are never automatically replayed: if interrupted, verify whether the report or claim exists before trying again.
+
+Find opens on normal launch and has a Retry action. Session failures offer Retry on Account, Report, and claim screens. A failed session check does not count as a guest session. Signed-in accounts must sign out before submitting public claims.
+
+For physical phones, check the computer's current LAN IPv4 address with ipconfig and set EXPO_PUBLIC_API_URL accordingly. Android's 10.0.2.2 default is for the emulator; localhost on a phone points to the phone. Do not commit credentials in EXPO_PUBLIC variables. Restart Expo after changing .env; use a full reload, and rebuild distributed apps to update their bundled configuration. Prefer a stable HTTPS origin for deployed apps.
+
+From the phone browser, open http://<computer-lan-ip>:5000/api/health (Flask liveness) and /api/ready (database readiness). Health should return 200; readiness returns 503 if MySQL cannot connect. Check same Wi-Fi, firewall port 5000, VPNs, and wireless client isolation. Expo/Metro or an Expo tunnel reaching the phone does not establish Flask reachability.
+
+Device QA still requires a physical phone: test fresh launch, signed-in claim blocking, session expiry, offline/online recovery, interrupted uploads, and cookie/CSRF continuity. Record five cold and five warm launch timings before judging performance improvements.

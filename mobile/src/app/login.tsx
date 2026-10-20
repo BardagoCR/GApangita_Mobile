@@ -21,7 +21,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await signIn(username, password);
-      const destination = returnTo && (returnTo.startsWith('/(tabs)/') || returnTo.startsWith('/staff/') || returnTo.startsWith('/claims/'))
+      const destination = returnTo && (returnTo.startsWith('/(tabs)/') || returnTo.startsWith('/staff/'))
         ? returnTo
         : '/(tabs)/account';
       router.replace(destination as never);
@@ -57,7 +57,7 @@ export default function LoginScreen() {
             <Eyebrow>STAFF ACCESS</Eyebrow>
           </View> 
             <Heading>Welcome back!</Heading>
-            <Text style={styles.copy}>Sign in to report an item, submit a claim, or manage campus records.</Text>
+            <Text style={styles.copy}>Sign in to report an item or manage campus records. Claims are submitted while signed out.</Text>
             {error ? <Notice tone="error">{error}</Notice> : null}
             <Field label="Username" value={username} onChangeText={setUsername} placeholder="e.g. jdelacruz" />
             <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secureTextEntry />

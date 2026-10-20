@@ -1,4 +1,4 @@
 Flask
-mysql-connector-python
+mysql-connector-python>=9.2
 flask-cors
 flask-bcrypt

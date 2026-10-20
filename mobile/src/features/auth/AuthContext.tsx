@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import type { User } from '@/src/types/api';
@@ -8,6 +8,7 @@ import { login as loginRequest, logout as logoutRequest } from '@/src/services/a
 type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
+  authError: string;
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
@@ -19,45 +20,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  async function refreshAuth() {
+  const [authError, setAuthError] = useState('');
+  const generation = useRef(0);
+
+  const refreshAuth = useCallback(async () => {
+    const current = ++generation.current;
+    setIsLoading(true);
     try {
       const result = await request<{ is_authenticated: boolean; user?: User }>('/auth-status');
-      setUser(result.is_authenticated ? result.user || null : null);
+      if (current !== generation.current) return;
+      if (typeof result.is_authenticated !== 'boolean' || (result.is_authenticated && !result.user)) {
+        throw new Error('The server returned an invalid session. Please retry.');
+      }
       if (!result.is_authenticated) await clearCsrfToken();
-    } catch {
-      setUser(null);
+      if (current !== generation.current) return;
+      setUser(result.is_authenticated ? result.user || null : null);
+      setAuthError('');
+    } catch (reason) {
+      if (current === generation.current) setAuthError(reason instanceof Error ? reason.message : 'Unable to check your session.');
+    } finally {
+      if (current === generation.current) setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshAuth();
+    return () => { generation.current++; };
+  }, [refreshAuth]);
+
+  async function signIn(username: string, password: string) {
+    generation.current++;
+    setIsLoading(true);
+    try {
+      const result = await loginRequest(username, password);
+      await saveCsrfToken(result.csrf_token);
+      setUser(result.user);
+      setAuthError('');
+    } catch (reason) {
+      setAuthError('Unable to confirm your session. Retry the session check.');
+      throw reason;
     } finally {
       setIsLoading(false);
     }
   }
 
-  useEffect(() => {
-    void request<{ is_authenticated: boolean; user?: User }>('/auth-status')
-      .then((result) => {
-        setUser(result.is_authenticated ? result.user || null : null);
-        if (!result.is_authenticated) void clearCsrfToken();
-      })
-      .catch(() => setUser(null))
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  async function signIn(username: string, password: string) {
-    const result = await loginRequest(username, password);
-    await saveCsrfToken(result.csrf_token);
-    setUser(result.user);
-  }
-
   async function signOut() {
+    generation.current++;
+    setIsLoading(true);
     try {
       await logoutRequest();
-    } finally {
       await clearCsrfToken();
       setUser(null);
+      setAuthError('');
+    } catch (reason) {
+      setAuthError('Unable to confirm sign-out. Check your connection and retry.');
+      throw reason;
+    } finally {
+      setIsLoading(false);
     }
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signOut, refreshAuth }}>
+    <AuthContext.Provider value={{ user, isLoading, authError, signIn, signOut, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );

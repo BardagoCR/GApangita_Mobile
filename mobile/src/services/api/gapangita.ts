@@ -41,7 +41,7 @@ export async function getLocations(branchCode: string) {
   return rows.map((row) => ({ ...row, name: row.name || row.NAME || '' }));
 }
 
-export async function searchItems(filters: SearchFilters = {}) {
+export async function searchItems(filters: SearchFilters = {}, signal?: AbortSignal) {
   const query = new URLSearchParams();
   if (filters.name) query.set('name_q', filters.name);
   if (filters.description) query.set('desc_q', filters.description);
@@ -54,7 +54,7 @@ export async function searchItems(filters: SearchFilters = {}) {
   if (filters.browseAll) query.set('browse_all', '1');
   query.set('page', String(filters.page || 1));
   query.set('limit', String(filters.limit || 15));
-  return request<SearchResponse>(`/search?${query.toString()}`);
+  return request<SearchResponse>(`/search?${query.toString()}`, { signal });
 }
 
 export async function login(username: string, password: string) {

@@ -7,9 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionButton, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { request } from '@/src/services/api/client';
 import type { Item } from '@/src/types/api';
+import { useAuth } from '@/src/features/auth/AuthContext';
 import { colors } from '@/src/theme/colors';
 
 export default function ItemDetailsScreen() {
+  const { user, isLoading: authLoading, authError, refreshAuth } = useAuth();
   const { itemCode } = useLocalSearchParams<{ itemCode: string }>();
   const [item, setItem] = useState<Item | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +43,7 @@ export default function ItemDetailsScreen() {
           <Text onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={18} color={colors.maroon} /> Back to listings</Text>
           {loading ? <ActivityIndicator color={colors.maroon} style={styles.loader} /> : null}
           {error ? <Notice tone="error">{error}</Notice> : null}
+          {authError ? <><Notice tone="error">{authError}</Notice><ActionButton title="Retry session check" onPress={() => void refreshAuth()} disabled={authLoading} /></> : null}
           {item ? (
             <View style={styles.details}>
               <View style={[styles.badge, item.item_type === 'found' ? styles.found : styles.lost]}>
@@ -55,8 +58,8 @@ export default function ItemDetailsScreen() {
               <DetailRow icon="calendar-outline" label="Reported" value={item.date_found ? item.date_found.slice(0, 10) : 'Not specified'} />
               <Notice>Private item details and original photos are available only to authorized staff.</Notice>
               <ActionButton
-                title={item.can_claim ? 'This is mine · Start a claim' : 'Claim unavailable'}
-                disabled={!item.can_claim}
+                title={user ? 'Sign out to claim' : authLoading || authError ? 'Session check required' : item.can_claim ? 'This is mine · Start a claim' : 'Claim unavailable'}
+                disabled={!item.can_claim || !!user || authLoading || !!authError}
                 onPress={() => router.push(`/claims/${encodeURIComponent(item.item_code)}` as never)}
               />
             </View>
