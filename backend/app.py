@@ -70,8 +70,8 @@ CLAIM_RATE_LIMIT_LOCK = Lock()
 
 os.makedirs(EVIDENCE_UPLOAD_FOLDER, exist_ok=True)
 
-def get_db_connection():
-    return mysql.connector.connect(**db_config)
+def get_db_connection(**timeouts):
+    return mysql.connector.connect(**db_config, connection_timeout=5, **timeouts)
 
 
 def allowed_file(filename):
@@ -633,6 +633,30 @@ def logout():
     
     return jsonify({'message': 'Logged out successfully'}), 200
 
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'ok'}), 200
+
+
+@app.route('/api/ready', methods=['GET'])
+def readiness():
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection(read_timeout=5, write_timeout=5)
+        cursor = connection.cursor()
+        cursor.execute('SELECT 1')
+        cursor.fetchone()
+        return jsonify({'status': 'ready'}), 200
+    except mysql.connector.Error:
+        return jsonify({'status': 'unavailable'}), 503
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None:
+            connection.close()
+
+
 @app.route('/api/auth-status', methods=['GET'])
 def auth_status():
     if 'user_id' in session:
@@ -649,6 +673,9 @@ def auth_status():
 
 @app.route('/api/claims', methods=['POST'])
 def process_item_claim():
+    if 'user_id' in session:
+        return jsonify({'error': 'Sign out to submit a public claim.'}), 403
+
     if not check_claim_rate_limit(request.remote_addr or 'unknown'):
         return jsonify({'error': 'Too many claim attempts. Please wait a minute and try again.'}), 429
 
@@ -677,7 +704,7 @@ def process_item_claim():
         errors.append('The middle name is too long.')
     if not contact_number or len(contact_number) > 20:
         errors.append('A contact number is required.')
-    if not EMAIL_REGEX.match(claimant_email) or len(claimant_email) > 254:
+    if not re.match(EMAIL_REGEX, claimant_email) or len(claimant_email) > 254:
         errors.append('A valid email address is required.')
     if affiliation not in ('Student', 'Faculty', 'Staff', 'Visitor'):
         errors.append('A valid affiliation is required.')

@@ -16,7 +16,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ItemCard } from '@/src/components/ItemCard';
-import { Notice, Page, SelectField, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
+import { ActionButton, Notice, Page, SelectField, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { getBranches, getCategories, getLocations, searchItems } from '@/src/services/api/gapangita';
 import type { Branch, Category, Item, Location } from '@/src/types/api';
 import { colors } from '@/src/theme/colors';
@@ -42,6 +42,7 @@ export default function FindScreen() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
   const [hasLoadedResults, setHasLoadedResults] = useState(false);
   const hasCriteria = Boolean(
     name.trim() || description.trim() || type !== 'all' || categoryCode || branchCode || locationCode,
@@ -54,7 +55,7 @@ export default function FindScreen() {
         setBranches(branchRows);
       })
       .catch((reason: Error) => setError(reason.message));
-  }, []);
+  }, [retryKey]);
 
   useEffect(() => {
     if (!branchCode) return;
@@ -73,6 +74,7 @@ export default function FindScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     const timer = setTimeout(() => {
       setLoading(true);
       setError('');
@@ -86,7 +88,7 @@ export default function FindScreen() {
         page,
         limit: 15,
         browseAll: !hasCriteria,
-      })
+      }, controller.signal)
         .then((result) => {
           if (cancelled) return;
           setItems(result.items);
@@ -104,8 +106,9 @@ export default function FindScreen() {
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      controller.abort();
     };
-  }, [name, description, type, categoryCode, branchCode, locationCode, page, hasCriteria]);
+  }, [name, description, type, categoryCode, branchCode, locationCode, page, hasCriteria, retryKey]);
 
   function updateType(nextType: ItemTypeFilter) {
     setType(nextType);
@@ -209,7 +212,7 @@ export default function FindScreen() {
           {hasLoadedResults && !loading ? <Text style={styles.resultCount}>{total} results</Text> : null}
         </View>
 
-        {error ? <Notice tone="error">{error}</Notice> : null}
+        {error ? <><Notice tone="error">{error}</Notice><ActionButton title="Retry" onPress={() => setRetryKey((value) => value + 1)} disabled={loading} /></> : null}
         {loading ? <ActivityIndicator color={colors.maroon} style={styles.loader} /> : null}
         {!loading && hasLoadedResults && items.length === 0 && !error ? (
           <Notice>No matching listings yet. Try another name or filter.</Notice>

@@ -1,18 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton, Field, Heading, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { submitClaim } from '@/src/services/api/gapangita';
 import type { ImageAttachment } from '@/src/types/api';
+import { useAuth } from '@/src/features/auth/AuthContext';
 import { colors } from '@/src/theme/colors';
 
 const affiliations = ['Student', 'Faculty', 'Staff', 'Visitor'] as const;
 
 export default function ClaimScreen() {
+  const { user, isLoading: authLoading, authError, refreshAuth } = useAuth();
   const { itemCode } = useLocalSearchParams<{ itemCode: string }>();
   const [firstName, setFirstName] = useState('');
   const [middleName, setMiddleName] = useState('');
@@ -28,6 +30,7 @@ export default function ClaimScreen() {
   const [additionalEvidence, setAdditionalEvidence] = useState('');
   const [evidence, setEvidence] = useState<ImageAttachment | null>(null);
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -60,6 +63,7 @@ export default function ClaimScreen() {
   }
 
   async function handleSubmit() {
+    if (submitting.current || loading || user || authLoading || authError) return;
     setError('');
     setSuccess('');
     if (!firstName.trim() || !lastName.trim() || !contactNumber.trim() || !email.trim() || !itemDescription.trim() || !identifyingFeatures.trim()) {
@@ -70,6 +74,7 @@ export default function ClaimScreen() {
       setError('Enter a valid email address.');
       return;
     }
+    submitting.current = true;
     setLoading(true);
     try {
       await submitClaim({
@@ -94,8 +99,18 @@ export default function ClaimScreen() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to submit the claim.');
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
+  }
+
+  if (user || authLoading || authError) {
+    return <Page><SafeAreaView edges={['top', 'bottom']} style={styles.content}>
+      <Heading>Public claim unavailable</Heading>
+      <Notice>{user ? 'Sign out to submit a public claim.' : authLoading ? 'Checking your session...' : authError}</Notice>
+      {authError ? <ActionButton title="Retry session check" onPress={() => void refreshAuth()} disabled={authLoading} /> : null}
+      <ActionButton title="Back to listings" onPress={() => router.replace('/(tabs)')} />
+    </SafeAreaView></Page>;
   }
 
   return (
