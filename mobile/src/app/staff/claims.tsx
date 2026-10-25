@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,15 +19,17 @@ export default function ClaimsQueueScreen() {
   const [error, setError] = useState('');
   const isStaff = Boolean(user && ['Admin', 'Staff'].includes(user.user_role));
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!isStaff) return;
     let cancelled = false;
+    setLoading(true);
+    setError('');
     getClaimQueue()
       .then((result) => { if (!cancelled) setClaims(result.claims); })
       .catch((reason: Error) => { if (!cancelled) setError(reason.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [isStaff]);
+  }, [isStaff]));
 
   if (isLoading || !isStaff) {
     return <Page><SafeAreaView edges={['top']} style={styles.gate}><Notice tone="error">Sign in with staff access to review claims.</Notice></SafeAreaView></Page>;
@@ -56,7 +58,7 @@ export default function ClaimsQueueScreen() {
           </View>
         }
           renderItem={({ item }) => (
-            <Pressable accessibilityRole="button" onPress={() => router.push(`/staff/claims/${encodeURIComponent(item.item_code)}` as never)} style={styles.row}>
+            <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/staff/claims/[itemCode]', params: { itemCode: item.item_code, claimId: String(item.claimed_item_id) } })} style={styles.row}>
               <View style={styles.icon}><Ionicons name="shield-checkmark-outline" size={22} color={colors.maroon} /></View>
               <View style={styles.body}>
                 <Text style={styles.name}>{item.claimer_first_name} {item.claimer_last_name}</Text>

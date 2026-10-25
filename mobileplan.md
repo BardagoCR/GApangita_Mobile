@@ -33,7 +33,7 @@ Tasks:
 - Guard mobile/src/app/claims/[itemCode].tsx against direct navigation and recheck authorization at submission, including account changes while the form is open.
 - Reject authenticated POST /api/claims requests with HTTP 403 before processing attachments or database writes. Keep existing CSRF and validation rules intact.
 - Keep unknown/loading session state distinct from a confirmed guest; connection failure must not grant claim access.
-- Preserve the one-claim-per-item rule and all item/claim-status restrictions in plan.md.
+- Preserve claim history with at most one active claim per item. Rejection releases the item until its original 21-day deadline; approval archives it. This supersedes the older one-claim-ever rule in plan.md.
 - Update login/account copy that currently implies claimants must sign in.
 
 Acceptance:
@@ -87,7 +87,7 @@ Acceptance:
 
 Before implementing Expo/React Native changes, read the installed Expo major version and matching official documentation as required by mobile/AGENTS.md.
 
-No database reset, schema change, or framework replacement is planned. Implementation checks and remaining device QA are recorded below.
+No database reset or framework replacement is planned. The approved claim lifecycle update uses the non-destructive migration documented in audit/CLAIM_LIFECYCLE.md. Implementation checks and remaining device QA are recorded below.
 
 
 ## Implementation record

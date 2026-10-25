@@ -1,9 +1,10 @@
+import { useAppDialog } from '@/src/components/AppDialog';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton, Field, Heading, Notice, Page, SelectField, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
@@ -18,6 +19,7 @@ const PUBLIC_COLORS: PublicColor[] = [
 ];
 
 export default function ReportScreen() {
+  const { confirm, notify, dialog } = useAppDialog();
   const { user, isLoading: authLoading, authError, refreshAuth } = useAuth();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -36,6 +38,14 @@ export default function ReportScreen() {
   const submitting = useRef(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
+  const [submitAttempt, setSubmitAttempt] = useState(0);
+  useEffect(() => {
+    if (!error && !success) return;
+    Keyboard.dismiss();
+    const frame = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [error, success, submitAttempt]);
 
   useEffect(() => {
     void Promise.all([getCategories(), getBranches()]).then(([categoryRows, branchRows]) => {
@@ -66,6 +76,7 @@ export default function ReportScreen() {
     if (submitting.current || loading || !user || authLoading || authError) return;
     setError('');
     setSuccess('');
+    setSubmitAttempt((value) => value + 1);
     if (!name.trim() || !description.trim() || !categoryCode || !branchCode || !locationCode) {
       setError('Complete all required fields before submitting.');
       return;
@@ -74,12 +85,15 @@ export default function ReportScreen() {
     if (itemType === 'found' && !image) { setError('Add a photo for a found item.'); return; }
 
     submitting.current = true;
+    const confirmed = await confirm({ title: `Submit ${itemType} item?`, message: `Submit "${name.trim()}" as a ${itemType} item? It will appear in the campus listings for up to three weeks. Check the details and photo before continuing.`, confirmLabel: 'Submit report' });
+    if (!confirmed) { submitting.current = false; return; }
     setLoading(true);
     try {
       const dateValue = `${dateFound.getFullYear()}-${String(dateFound.getMonth() + 1).padStart(2, '0')}-${String(dateFound.getDate()).padStart(2, '0')}T${String(dateFound.getHours()).padStart(2, '0')}:${String(dateFound.getMinutes()).padStart(2, '0')}`;
       await submitReport({ name, description, itemType, categoryCode, branchCode, locationCode, dateFound: dateValue, publicColor, image });
       setSuccess('Report submitted. Your item is now in the open campus listings.');
       setName(''); setDescription(''); setImage(null); setPublicColor('Unknown');
+      await notify({ title: 'Report submitted', message: 'Your item is now in the campus listings.', tone: 'success' });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not submit this report.');
       if (reason && typeof reason === 'object' && 'status' in reason && reason.status === 401) {
@@ -89,21 +103,21 @@ export default function ReportScreen() {
   }
 
   if (authLoading || authError) {
-    return <Page><SafeAreaView edges={['top']} style={styles.safe}><View style={styles.gate}>
+    return <Page>{dialog}<SafeAreaView edges={['top']} style={styles.safe}><View style={styles.gate}>
       <Notice>{authLoading ? 'Checking your session...' : authError}</Notice>
       {authError ? <ActionButton title="Retry session check" onPress={() => void refreshAuth()} disabled={authLoading} /> : null}
     </View></SafeAreaView></Page>;
   }
 
   if (!user) {
-    return <Page><SafeAreaView edges={['top']} style={styles.safe}><View style={styles.gate}><Heading>Sign in to report</Heading><Text style={styles.help}>A staff account is required to add an item to the campus listings.</Text><ActionButton title="Sign in" onPress={() => router.push({ pathname: '/login', params: { returnTo: '/(tabs)/report' } })} /></View></SafeAreaView></Page>;
+    return <Page>{dialog}<SafeAreaView edges={['top']} style={styles.safe}><View style={styles.gate}><Heading>Sign in to report</Heading><Text style={styles.help}>A staff account is required to add an item to the campus listings.</Text><ActionButton title="Sign in" onPress={() => router.push({ pathname: '/login', params: { returnTo: '/(tabs)/report' } })} /></View></SafeAreaView></Page>;
   }
 
   return (
-    <Page>
+    <Page>{dialog}
       <SafeAreaView edges={['top']} style={styles.safe}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.headingBlock}><Text style={styles.kicker}>HELP IT FIND ITS WAY</Text><Heading>Report an item</Heading><Text style={styles.help}>Add enough detail for its owner to recognize it.</Text></View>
             {error ? <Notice tone="error">{error}</Notice> : null}
             {success ? <Notice>{success}</Notice> : null}

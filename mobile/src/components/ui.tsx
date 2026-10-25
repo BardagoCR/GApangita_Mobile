@@ -35,7 +35,11 @@ export function Field({
   multiline = false,
   secureTextEntry = false,
   keyboardType,
+  error,
+  onLayout,
 }: {
+  error?: string;
+  onLayout?: import('react-native').ViewProps['onLayout'];
   label: string;
   value: string;
   onChangeText: (value: string) => void;
@@ -45,7 +49,7 @@ export function Field({
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
 }) {
   return (
-    <View style={styles.fieldWrap}>
+    <View style={styles.fieldWrap} onLayout={onLayout}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
@@ -57,8 +61,9 @@ export function Field({
         keyboardType={keyboardType}
         multiline={multiline}
         textAlignVertical={multiline ? 'top' : 'center'}
-        style={[styles.input, multiline && styles.multiline]}
+        style={[styles.input, multiline && styles.multiline, !!error && { borderColor: colors.error }]}
       />
+      {error ? <Text accessibilityRole="alert" style={[styles.errorText, { fontSize: 12 }]}>{error}</Text> : null}
     </View>
   );
 }

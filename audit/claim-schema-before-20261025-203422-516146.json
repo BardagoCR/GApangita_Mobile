@@ -1,0 +1,112 @@
+{
+  "TABLE claimed_items": {
+    "Table": "claimed_items",
+    "Create Table": "CREATE TABLE `claimed_items` (\n  `claimed_item_id` int(11) NOT NULL AUTO_INCREMENT,\n  `claimed_item_code` varchar(15) DEFAULT NULL,\n  `item_code` varchar(15) NOT NULL,\n  `claimer_first_name` varchar(50) NOT NULL,\n  `claimer_middle_name` varchar(50) DEFAULT NULL,\n  `claimer_last_name` varchar(50) NOT NULL,\n  `contact_number` varchar(20) NOT NULL,\n  `claimant_email` varchar(254) NOT NULL,\n  `claimant_affiliation` enum('Student','Faculty','Staff','Visitor') NOT NULL,\n  `last_seen_location` varchar(255) DEFAULT NULL,\n  `last_seen_date_time` datetime DEFAULT NULL,\n  `item_description` text NOT NULL,\n  `identifying_features` text NOT NULL,\n  `contents` text DEFAULT NULL,\n  `additional_evidence` text DEFAULT NULL,\n  `evidence_file_path` varchar(255) DEFAULT NULL,\n  `status` enum('Pending','Under Review','Approved','Rejected','Returned') NOT NULL DEFAULT 'Pending',\n  `staff_notes` text DEFAULT NULL,\n  `date_claimed` datetime DEFAULT current_timestamp(),\n  `date_updated` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  `active_item_code` varchar(15) GENERATED ALWAYS AS (case when `status` in ('Pending','Under Review','Approved','Returned') then `item_code` else NULL end) STORED,\n  PRIMARY KEY (`claimed_item_id`),\n  UNIQUE KEY `claimed_item_code` (`claimed_item_code`),\n  UNIQUE KEY `uq_claim_active_item` (`active_item_code`),\n  KEY `idx_claim_item_history` (`item_code`,`claimed_item_id`),\n  CONSTRAINT `claimed_items_ibfk_1` FOREIGN KEY (`item_code`) REFERENCES `items` (`item_code`)\n) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+  },
+  "TABLE items": {
+    "Table": "items",
+    "Create Table": "CREATE TABLE `items` (\n  `item_id` int(11) NOT NULL AUTO_INCREMENT,\n  `item_code` varchar(15) DEFAULT NULL,\n  `NAME` varchar(255) NOT NULL,\n  `DESCRIPTION` text DEFAULT NULL,\n  `item_type` enum('lost','found') NOT NULL,\n  `STATUS` enum('open','resolved','closed') DEFAULT 'open',\n  `category_code` varchar(15) DEFAULT NULL,\n  `branch_code` varchar(15) DEFAULT NULL,\n  `location_code` varchar(15) DEFAULT NULL,\n  `item_file_path` varchar(255) DEFAULT NULL,\n  `public_color` varchar(50) DEFAULT NULL,\n  `date_found` datetime DEFAULT NULL,\n  `date_reported` datetime DEFAULT current_timestamp(),\n  `close_at` datetime DEFAULT NULL,\n  `times_unclaimed` int(11) DEFAULT 0,\n  PRIMARY KEY (`item_id`),\n  UNIQUE KEY `item_code` (`item_code`),\n  KEY `category_code` (`category_code`),\n  KEY `branch_code` (`branch_code`),\n  KEY `location_code` (`location_code`),\n  CONSTRAINT `items_ibfk_1` FOREIGN KEY (`category_code`) REFERENCES `categories` (`category_code`) ON DELETE SET NULL,\n  CONSTRAINT `items_ibfk_2` FOREIGN KEY (`branch_code`) REFERENCES `branches` (`branch_code`) ON DELETE SET NULL,\n  CONSTRAINT `items_ibfk_3` FOREIGN KEY (`location_code`) REFERENCES `locations` (`location_code`) ON DELETE SET NULL\n) ENGINE=InnoDB AUTO_INCREMENT=230 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+  },
+  "VIEW vw_openAllItems": {
+    "View": "vw_openallitems",
+    "Create View": "CREATE ALGORITHM=UNDEFINED DEFINER=`gapangita_user`@`localhost` SQL SECURITY DEFINER VIEW `vw_openallitems` AS select `i`.`item_id` AS `item_id`,`i`.`item_code` AS `item_code`,`i`.`item_type` AS `item_type`,case when `cl`.`status` in ('Pending','Under Review') then 'Under Verification' else 'Available' end AS `status`,`i`.`category_code` AS `category_code`,`c`.`NAME` AS `categoryName`,`i`.`public_color` AS `public_color`,`i`.`branch_code` AS `branch_code`,`b`.`NAME` AS `branchName`,`i`.`location_code` AS `location_code`,cast(`i`.`date_found` as date) AS `date_found`,`i`.`date_reported` AS `date_reported` from (((`items` `i` left join `categories` `c` on(`c`.`category_code` = `i`.`category_code`)) left join `branches` `b` on(`b`.`branch_code` = `i`.`branch_code`)) left join `claimed_items` `cl` on(`cl`.`active_item_code` = `i`.`item_code`)) where `i`.`STATUS` = 'open' and coalesce(`i`.`close_at`,`i`.`date_reported` + interval 21 day) > current_timestamp() and (`cl`.`status` is null or `cl`.`status` in ('Pending','Under Review'))",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci"
+  },
+  "VIEW vw_closedAllItems": {
+    "View": "vw_closedallitems",
+    "Create View": "CREATE ALGORITHM=UNDEFINED DEFINER=`gapangita_user`@`localhost` SQL SECURITY DEFINER VIEW `vw_closedallitems` AS select `i`.`item_id` AS `item_id`,`i`.`item_code` AS `item_code`,`i`.`NAME` AS `name`,`i`.`DESCRIPTION` AS `description`,`i`.`item_type` AS `item_type`,`i`.`STATUS` AS `status`,`i`.`category_code` AS `category_code`,`c`.`NAME` AS `categoryName`,`c`.`DESCRIPTION` AS `categoryDescription`,`i`.`branch_code` AS `branch_code`,`b`.`NAME` AS `branchName`,`i`.`location_code` AS `location_code`,`l`.`NAME` AS `locationName`,`l`.`DESCRIPTION` AS `locationDescription`,`i`.`item_file_path` AS `item_file_path`,`i`.`date_found` AS `date_found`,`i`.`date_reported` AS `date_reported` from (((`items` `i` left join `categories` `c` on(`i`.`category_code` = `c`.`category_code`)) left join `branches` `b` on(`i`.`branch_code` = `b`.`branch_code`)) left join `locations` `l` on(`i`.`location_code` = `l`.`location_code`)) where `i`.`STATUS` in ('resolved','closed') or coalesce(`i`.`close_at`,`i`.`date_reported` + interval 21 day) <= current_timestamp()",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci"
+  },
+  "VIEW vw_closedLostItems": {
+    "View": "vw_closedlostitems",
+    "Create View": "CREATE ALGORITHM=UNDEFINED DEFINER=`gapangita_user`@`localhost` SQL SECURITY DEFINER VIEW `vw_closedlostitems` AS select `i`.`item_id` AS `item_id`,`i`.`item_code` AS `item_code`,`i`.`NAME` AS `name`,`i`.`DESCRIPTION` AS `description`,`i`.`item_type` AS `item_type`,`i`.`STATUS` AS `status`,`i`.`category_code` AS `category_code`,`c`.`NAME` AS `categoryName`,`c`.`DESCRIPTION` AS `categoryDescription`,`i`.`branch_code` AS `branch_code`,`b`.`NAME` AS `branchName`,`i`.`location_code` AS `location_code`,`l`.`NAME` AS `locationName`,`l`.`DESCRIPTION` AS `locationDescription`,`i`.`item_file_path` AS `item_file_path`,`i`.`date_found` AS `date_found`,`i`.`date_reported` AS `date_reported` from (((`items` `i` left join `categories` `c` on(`i`.`category_code` = `c`.`category_code`)) left join `branches` `b` on(`i`.`branch_code` = `b`.`branch_code`)) left join `locations` `l` on(`i`.`location_code` = `l`.`location_code`)) where (`i`.`STATUS` in ('resolved','closed') or coalesce(`i`.`close_at`,`i`.`date_reported` + interval 21 day) <= current_timestamp()) and `i`.`item_type` = 'lost'",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci"
+  },
+  "VIEW vw_closedFoundItems": {
+    "View": "vw_closedfounditems",
+    "Create View": "CREATE ALGORITHM=UNDEFINED DEFINER=`gapangita_user`@`localhost` SQL SECURITY DEFINER VIEW `vw_closedfounditems` AS select `i`.`item_id` AS `item_id`,`i`.`item_code` AS `item_code`,`i`.`NAME` AS `name`,`i`.`DESCRIPTION` AS `description`,`i`.`item_type` AS `item_type`,`i`.`STATUS` AS `status`,`i`.`category_code` AS `category_code`,`c`.`NAME` AS `categoryName`,`c`.`DESCRIPTION` AS `categoryDescription`,`i`.`branch_code` AS `branch_code`,`b`.`NAME` AS `branchName`,`i`.`location_code` AS `location_code`,`l`.`NAME` AS `locationName`,`l`.`DESCRIPTION` AS `locationDescription`,`i`.`item_file_path` AS `item_file_path`,`i`.`date_found` AS `date_found`,`i`.`date_reported` AS `date_reported` from (((`items` `i` left join `categories` `c` on(`i`.`category_code` = `c`.`category_code`)) left join `branches` `b` on(`i`.`branch_code` = `b`.`branch_code`)) left join `locations` `l` on(`i`.`location_code` = `l`.`location_code`)) where (`i`.`STATUS` in ('resolved','closed') or coalesce(`i`.`close_at`,`i`.`date_reported` + interval 21 day) <= current_timestamp()) and `i`.`item_type` = 'found'",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci"
+  },
+  "VIEW vw_archivedAll": {
+    "View": "vw_archivedall",
+    "Create View": "CREATE ALGORITHM=UNDEFINED DEFINER=`gapangita_user`@`localhost` SQL SECURITY DEFINER VIEW `vw_archivedall` AS select `un`.`unarchived_item_id` AS `unarchived_item_id`,`un`.`unarchived_item_code` AS `unarchived_item_code`,`i`.`item_code` AS `item_code`,`i`.`NAME` AS `name`,`i`.`DESCRIPTION` AS `description`,`i`.`item_type` AS `item_type`,`i`.`STATUS` AS `status`,`i`.`public_color` AS `public_color`,`i`.`category_code` AS `category_code`,`c`.`NAME` AS `categoryName`,`c`.`DESCRIPTION` AS `categoryDescription`,`i`.`branch_code` AS `branch_code`,`b`.`NAME` AS `branchName`,`i`.`location_code` AS `location_code`,`l`.`NAME` AS `locationName`,`l`.`DESCRIPTION` AS `locationDescription`,`i`.`item_file_path` AS `item_file_path`,`i`.`date_found` AS `date_found`,`i`.`date_reported` AS `date_reported`,`un`.`claimer_first_name` AS `claimer_first_name`,`un`.`claimer_middle_name` AS `claimer_middle_name`,`un`.`claimer_last_name` AS `claimer_last_name`,`un`.`contact_number` AS `contact_number`,`un`.`claimProof_file_path` AS `claimProof_file_path`,`un`.`date_claimed` AS `date_claimed`,`un`.`date_unarchived` AS `date_unarchived`,`un`.`reason` AS `reason` from ((((`unarchived_items` `un` left join `items` `i` on(`i`.`item_code` = `un`.`item_code`)) left join `categories` `c` on(`i`.`category_code` = `c`.`category_code`)) left join `branches` `b` on(`i`.`branch_code` = `b`.`branch_code`)) left join `locations` `l` on(`i`.`location_code` = `l`.`location_code`)) where `i`.`times_unclaimed` > 0",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci"
+  },
+  "VIEW vw_archivedLost": {
+    "View": "vw_archivedlost",
+    "Create View": "CREATE ALGORITHM=UNDEFINED DEFINER=`gapangita_user`@`localhost` SQL SECURITY DEFINER VIEW `vw_archivedlost` AS select `un`.`unarchived_item_id` AS `unarchived_item_id`,`un`.`unarchived_item_code` AS `unarchived_item_code`,`i`.`item_code` AS `item_code`,`i`.`NAME` AS `name`,`i`.`DESCRIPTION` AS `description`,`i`.`item_type` AS `item_type`,`i`.`STATUS` AS `status`,`i`.`public_color` AS `public_color`,`i`.`category_code` AS `category_code`,`c`.`NAME` AS `categoryName`,`c`.`DESCRIPTION` AS `categoryDescription`,`i`.`branch_code` AS `branch_code`,`b`.`NAME` AS `branchName`,`i`.`location_code` AS `location_code`,`l`.`NAME` AS `locationName`,`l`.`DESCRIPTION` AS `locationDescription`,`i`.`item_file_path` AS `item_file_path`,`i`.`date_found` AS `date_found`,`i`.`date_reported` AS `date_reported`,`un`.`claimer_first_name` AS `claimer_first_name`,`un`.`claimer_middle_name` AS `claimer_middle_name`,`un`.`claimer_last_name` AS `claimer_last_name`,`un`.`contact_number` AS `contact_number`,`un`.`claimProof_file_path` AS `claimProof_file_path`,`un`.`date_claimed` AS `date_claimed`,`un`.`date_unarchived` AS `date_unarchived`,`un`.`reason` AS `reason` from ((((`unarchived_items` `un` left join `items` `i` on(`i`.`item_code` = `un`.`item_code`)) left join `categories` `c` on(`i`.`category_code` = `c`.`category_code`)) left join `branches` `b` on(`i`.`branch_code` = `b`.`branch_code`)) left join `locations` `l` on(`i`.`location_code` = `l`.`location_code`)) where `i`.`item_type` = 'lost' and `i`.`times_unclaimed` > 0",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci"
+  },
+  "VIEW vw_archivedFound": {
+    "View": "vw_archivedfound",
+    "Create View": "CREATE ALGORITHM=UNDEFINED DEFINER=`gapangita_user`@`localhost` SQL SECURITY DEFINER VIEW `vw_archivedfound` AS select `un`.`unarchived_item_id` AS `unarchived_item_id`,`un`.`unarchived_item_code` AS `unarchived_item_code`,`i`.`item_code` AS `item_code`,`i`.`NAME` AS `name`,`i`.`DESCRIPTION` AS `description`,`i`.`item_type` AS `item_type`,`i`.`STATUS` AS `status`,`i`.`public_color` AS `public_color`,`i`.`category_code` AS `category_code`,`c`.`NAME` AS `categoryName`,`c`.`DESCRIPTION` AS `categoryDescription`,`i`.`branch_code` AS `branch_code`,`b`.`NAME` AS `branchName`,`i`.`location_code` AS `location_code`,`l`.`NAME` AS `locationName`,`l`.`DESCRIPTION` AS `locationDescription`,`i`.`item_file_path` AS `item_file_path`,`i`.`date_found` AS `date_found`,`i`.`date_reported` AS `date_reported`,`un`.`claimer_first_name` AS `claimer_first_name`,`un`.`claimer_middle_name` AS `claimer_middle_name`,`un`.`claimer_last_name` AS `claimer_last_name`,`un`.`contact_number` AS `contact_number`,`un`.`claimProof_file_path` AS `claimProof_file_path`,`un`.`date_claimed` AS `date_claimed`,`un`.`date_unarchived` AS `date_unarchived`,`un`.`reason` AS `reason` from ((((`unarchived_items` `un` left join `items` `i` on(`i`.`item_code` = `un`.`item_code`)) left join `categories` `c` on(`i`.`category_code` = `c`.`category_code`)) left join `branches` `b` on(`i`.`branch_code` = `b`.`branch_code`)) left join `locations` `l` on(`i`.`location_code` = `l`.`location_code`)) where `i`.`item_type` = 'found' and `i`.`times_unclaimed` > 0",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci"
+  },
+  "PROCEDURE sp_insert_into_claimed_items": {
+    "Procedure": "sp_insert_into_claimed_items",
+    "sql_mode": "NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION",
+    "Create Procedure": "CREATE DEFINER=`gapangita_user`@`localhost` PROCEDURE `sp_insert_into_claimed_items`(\n    IN p_item_code VARCHAR(15),\n    IN p_claimer_first_name VARCHAR(50),\n    IN p_claimer_middle_name VARCHAR(50),\n    IN p_claimer_last_name VARCHAR(50),\n    IN p_contact_number VARCHAR(20),\n    IN p_claimant_email VARCHAR(254),\n    IN p_claimant_affiliation ENUM('Student', 'Faculty', 'Staff', 'Visitor'),\n    IN p_last_seen_location VARCHAR(255),\n    IN p_last_seen_date_time DATETIME,\n    IN p_item_description TEXT,\n    IN p_identifying_features TEXT,\n    IN p_contents TEXT,\n    IN p_additional_evidence TEXT,\n    IN p_evidence_file_path VARCHAR(255)\n)\nBEGIN\n    DECLARE v_item_status VARCHAR(15) DEFAULT NULL;\n    DECLARE v_deadline DATETIME;\n    DECLARE v_active INT DEFAULT 0;\n    SELECT STATUS, COALESCE(close_at, DATE_ADD(date_reported, INTERVAL 21 DAY))\n      INTO v_item_status, v_deadline FROM items WHERE item_code=p_item_code FOR UPDATE;\n    IF v_item_status IS NULL THEN\n        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30002, MESSAGE_TEXT='The selected item does not exist.';\n    END IF;\n    SELECT COUNT(*) INTO v_active FROM claimed_items WHERE active_item_code=p_item_code;\n    IF v_active > 0 THEN\n        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30001, MESSAGE_TEXT='An active claim already exists for this item.';\n    END IF;\n    IF v_item_status <> 'open' OR v_deadline <= NOW() THEN\n        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30003, MESSAGE_TEXT='The selected item is no longer available for claiming.';\n    END IF;\n    INSERT INTO claimed_items (\n        item_code,\n        claimer_first_name,\n        claimer_middle_name,\n        claimer_last_name,\n        contact_number,\n        claimant_email,\n        claimant_affiliation,\n        last_seen_location,\n        last_seen_date_time,\n        item_description,\n        identifying_features,\n        contents,\n        additional_evidence,\n        evidence_file_path,\n        status\n    ) VALUES (\n        p_item_code,\n        p_claimer_first_name,\n        p_claimer_middle_name,\n        p_claimer_last_name,\n        p_contact_number,\n        p_claimant_email,\n        p_claimant_affiliation,\n        p_last_seen_location,\n        p_last_seen_date_time,\n        p_item_description,\n        p_identifying_features,\n        p_contents,\n        p_additional_evidence,\n        p_evidence_file_path,\n        'Pending'\n    );\nEND",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci",
+    "Database Collation": "utf8mb4_general_ci"
+  },
+  "PROCEDURE sp_unarchive_item": {
+    "Procedure": "sp_unarchive_item",
+    "sql_mode": "NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION",
+    "Create Procedure": "CREATE DEFINER=`gapangita_user`@`localhost` PROCEDURE `sp_unarchive_item`(IN p_item_code VARCHAR(15), IN p_reason TEXT)\nBEGIN\n    DECLARE v_status VARCHAR(15) DEFAULT NULL;\n    DECLARE v_deadline DATETIME;\n    DECLARE v_claims INT;\n    SELECT STATUS, close_at INTO v_status, v_deadline FROM items WHERE item_code=p_item_code FOR UPDATE;\n    IF v_status IS NULL THEN\n        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30002, MESSAGE_TEXT='Item not found.';\n    END IF;\n    IF EXISTS (SELECT 1 FROM claimed_items WHERE item_code=p_item_code AND status IN ('Approved','Returned')) THEN\n        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30004, MESSAGE_TEXT='An approved or returned item cannot be restored.';\n    END IF;\n    IF v_status='open' AND v_deadline > NOW() THEN\n        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30004, MESSAGE_TEXT='This item is already listed.';\n    END IF;\n    SELECT COUNT(*) INTO v_claims FROM claimed_items WHERE item_code=p_item_code;\n    IF v_claims > 0 THEN\n        INSERT INTO unarchived_items(item_code, claimer_first_name, claimer_middle_name,\n          claimer_last_name, contact_number, claimProof_file_path, date_claimed, reason)\n        SELECT item_code, claimer_first_name, claimer_middle_name, claimer_last_name,\n          contact_number, evidence_file_path, date_claimed, p_reason\n        FROM claimed_items WHERE item_code=p_item_code ORDER BY claimed_item_id DESC LIMIT 1;\n    ELSE\n        INSERT INTO unarchived_items(item_code, claimer_first_name, claimer_last_name, contact_number, reason)\n        VALUES(p_item_code,'SYSTEM','RESTORE','N/A',p_reason);\n    END IF;\n    UPDATE items SET STATUS='open', close_at=DATE_ADD(NOW(), INTERVAL 21 DAY),\n      times_unclaimed=COALESCE(times_unclaimed,0)+1 WHERE item_code=p_item_code;\nEND",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci",
+    "Database Collation": "utf8mb4_general_ci"
+  },
+  "TRIGGER trg_set_close_date": {
+    "Trigger": "trg_set_close_date",
+    "sql_mode": "NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION",
+    "SQL Original Statement": "CREATE DEFINER=`gapangita_user`@`localhost` TRIGGER trg_set_close_date BEFORE INSERT ON items FOR EACH ROW\nBEGIN\n    IF NEW.status='open' THEN\n        SET NEW.close_at=DATE_ADD(COALESCE(NEW.date_reported,NOW()), INTERVAL 21 DAY);\n    END IF;\nEND",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci",
+    "Database Collation": "utf8mb4_general_ci",
+    "Created": "2026-10-25 20:31:32.710000"
+  },
+  "TRIGGER trg_reset_close_date": {
+    "Trigger": "trg_reset_close_date",
+    "sql_mode": "NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION",
+    "SQL Original Statement": "CREATE DEFINER=`gapangita_user`@`localhost` TRIGGER trg_reset_close_date BEFORE UPDATE ON items FOR EACH ROW\nBEGIN\n    -- Rejection must never restart the original listing period.\n    IF NEW.status='open' AND NEW.close_at IS NULL THEN\n        SET NEW.close_at=DATE_ADD(NEW.date_reported, INTERVAL 21 DAY);\n    END IF;\nEND",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci",
+    "Database Collation": "utf8mb4_general_ci",
+    "Created": "2026-10-25 20:31:32.730000"
+  },
+  "TRIGGER trg_auto_resolved_claimed_items": {
+    "Trigger": "trg_auto_resolved_claimed_items",
+    "sql_mode": "NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION",
+    "SQL Original Statement": "CREATE DEFINER=`gapangita_user`@`localhost` TRIGGER trg_auto_resolved_claimed_items AFTER UPDATE ON claimed_items FOR EACH ROW\nBEGIN\n    IF OLD.status <> NEW.status THEN\n        IF NEW.status='Approved' THEN\n            UPDATE items SET STATUS='resolved' WHERE item_code=NEW.item_code;\n        ELSEIF NEW.status='Returned' THEN\n            UPDATE items SET STATUS='closed' WHERE item_code=NEW.item_code;\n        ELSEIF NEW.status='Rejected' THEN\n            UPDATE items SET STATUS=CASE WHEN close_at > NOW() THEN 'open' ELSE 'closed' END\n            WHERE item_code=NEW.item_code;\n        END IF;\n    END IF;\nEND",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci",
+    "Database Collation": "utf8mb4_general_ci",
+    "Created": "2026-10-25 20:31:32.750000"
+  },
+  "PROCEDURE sp_expire_items": {
+    "Procedure": "sp_expire_items",
+    "sql_mode": "NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION",
+    "Create Procedure": "CREATE DEFINER=`gapangita_user`@`localhost` PROCEDURE `sp_expire_items`()\nBEGIN\n    UPDATE items SET STATUS='closed'\n    WHERE STATUS='open' AND COALESCE(close_at, DATE_ADD(date_reported, INTERVAL 21 DAY)) <= NOW();\nEND",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci",
+    "Database Collation": "utf8mb4_general_ci"
+  },
+  "EVENT ev_auto_close_items": {
+    "Event": "ev_auto_close_items",
+    "sql_mode": "NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION",
+    "time_zone": "SYSTEM",
+    "Create Event": "CREATE DEFINER=`gapangita_user`@`localhost` EVENT `ev_auto_close_items` ON SCHEDULE EVERY 1 MINUTE STARTS '2026-10-25 20:31:32' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN\n    CALL sp_expire_items();\nEND",
+    "character_set_client": "utf8mb4",
+    "collation_connection": "utf8mb4_general_ci",
+    "Database Collation": "utf8mb4_general_ci"
+  }
+}

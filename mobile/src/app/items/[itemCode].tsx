@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,14 +17,17 @@ export default function ItemDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let cancelled = false;
+    setLoading(true);
+    setError('');
+    setItem(null);
     void request<Item>(`/items/${encodeURIComponent(itemCode)}`)
       .then((result) => { if (!cancelled) setItem(result); })
       .catch((reason: Error) => { if (!cancelled) setError(reason.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [itemCode]);
+  }, [itemCode]));
 
   const statusLabel = item?.status === 'Available'
     ? 'Available'

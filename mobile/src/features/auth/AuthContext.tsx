@@ -23,30 +23,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState('');
   const generation = useRef(0);
 
-  const refreshAuth = useCallback(async () => {
+  const checkAuth = useCallback((signal?: AbortSignal) => {
     const current = ++generation.current;
-    setIsLoading(true);
-    try {
-      const result = await request<{ is_authenticated: boolean; user?: User }>('/auth-status');
-      if (current !== generation.current) return;
-      if (typeof result.is_authenticated !== 'boolean' || (result.is_authenticated && !result.user)) {
-        throw new Error('The server returned an invalid session. Please retry.');
-      }
-      if (!result.is_authenticated) await clearCsrfToken();
-      if (current !== generation.current) return;
-      setUser(result.is_authenticated ? result.user || null : null);
-      setAuthError('');
-    } catch (reason) {
-      if (current === generation.current) setAuthError(reason instanceof Error ? reason.message : 'Unable to check your session.');
-    } finally {
-      if (current === generation.current) setIsLoading(false);
-    }
+    return request<{ is_authenticated: boolean; user?: User }>('/auth-status', { signal })
+      .then(async (result) => {
+        if (signal?.aborted || current !== generation.current) return;
+        if (typeof result.is_authenticated !== 'boolean' || (result.is_authenticated && !result.user)) {
+          throw new Error('The server returned an invalid session. Please retry.');
+        }
+        if (!result.is_authenticated) await clearCsrfToken();
+        if (signal?.aborted || current !== generation.current) return;
+        setUser(result.is_authenticated ? result.user || null : null);
+        setAuthError('');
+      })
+      .catch((reason) => {
+        if (!signal?.aborted && current === generation.current) setAuthError(reason instanceof Error ? reason.message : 'Unable to check your session.');
+      })
+      .finally(() => {
+        if (!signal?.aborted && current === generation.current) setIsLoading(false);
+      });
   }, []);
 
+  const refreshAuth = useCallback(async () => {
+    setIsLoading(true);
+    await checkAuth();
+  }, [checkAuth]);
+
   useEffect(() => {
-    void refreshAuth();
-    return () => { generation.current++; };
-  }, [refreshAuth]);
+    const controller = new AbortController();
+    void checkAuth(controller.signal);
+    return () => controller.abort();
+  }, [checkAuth]);
 
   async function signIn(username: string, password: string) {
     generation.current++;
