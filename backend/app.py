@@ -671,6 +671,18 @@ def auth_status():
         }), 200
     return jsonify({'is_authenticated': False}), 200
 
+def claim_database_error(error):
+    """Translate expected lifecycle conflicts without exposing database internals."""
+    code = getattr(error, 'errno', None)
+    if code == 30001 or (code == 1062 and 'uq_claim_active_item' in str(error)):
+        return jsonify({'error': 'An active claim already exists for this item.'}), 409
+    if code == 30002:
+        return jsonify({'error': 'Item not found.'}), 404
+    if code in (30003, 30004):
+        return jsonify({'error': getattr(error, 'msg', 'This item is no longer available.')}), 409
+    return None
+
+
 @app.route('/api/claims', methods=['POST'])
 def process_item_claim():
     if 'user_id' in session:
@@ -679,7 +691,12 @@ def process_item_claim():
     if not check_claim_rate_limit(request.remote_addr or 'unknown'):
         return jsonify({'error': 'Too many claim attempts. Please wait a minute and try again.'}), 429
 
-    data = request.form
+    if request.is_json:
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or any(not isinstance(value, str) for value in data.values()):
+            return jsonify({'error': 'Claim fields must be text values.'}), 400
+    else:
+        data = request.form
     item_code = (data.get('item_code') or '').strip()
     first_name = (data.get('claimer_first_name') or '').strip()
     middle_name = (data.get('claimer_middle_name') or '').strip()
@@ -762,7 +779,7 @@ def process_item_claim():
         )
         conn.commit()
         return jsonify({'message': 'Claim submitted for staff review.', 'item_code': item_code}), 201
-    except Exception:
+    except Exception as error:
         if conn:
             conn.rollback()
         if evidence_path:
@@ -770,6 +787,9 @@ def process_item_claim():
                 os.remove(os.path.join(app.config['UPLOAD_FOLDER'], evidence_path))
             except OSError:
                 pass
+        conflict = claim_database_error(error)
+        if conflict:
+            return conflict
         app.logger.exception('Claim submission failed')
         return jsonify({'error': 'Unable to save the claim. Please try again.'}), 500
     finally:
@@ -801,7 +821,8 @@ def get_claim_queue():
 
 
 @app.route('/api/claims/<item_code>', methods=['GET'])
-def get_claim_details(item_code):
+@app.route('/api/claim-records/<int:claim_id>', methods=['GET'])
+def get_claim_details(item_code=None, claim_id=None):
     error_response = require_staff()
     if error_response:
         return error_response
@@ -812,8 +833,8 @@ def get_claim_details(item_code):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            "SELECT c.*, i.NAME AS item_name, i.DESCRIPTION AS item_description_private, i.item_type, i.STATUS AS item_status, i.location_code, i.item_file_path, i.public_color FROM claimed_items AS c JOIN items AS i ON i.item_code = c.item_code WHERE c.item_code = %s",
-            (item_code,),
+            "SELECT c.*, i.NAME AS item_name, i.DESCRIPTION AS item_description_private, i.item_type, i.STATUS AS item_status, i.location_code, i.item_file_path, i.public_color FROM claimed_items AS c JOIN items AS i ON i.item_code = c.item_code WHERE " + ("c.claimed_item_id = %s" if claim_id is not None else "c.item_code = %s") + " ORDER BY c.claimed_item_id DESC LIMIT 1",
+            (claim_id if claim_id is not None else item_code,),
         )
         claim = cursor.fetchone()
         if not claim:
@@ -827,33 +848,64 @@ def get_claim_details(item_code):
 
 
 @app.route('/api/claims/<item_code>/status', methods=['PATCH'])
-def update_claim_status(item_code):
+@app.route('/api/claim-records/<int:claim_id>/status', methods=['PATCH'])
+def update_claim_status(item_code=None, claim_id=None):
     error_response = require_staff()
     if error_response:
         return error_response
-
-    data = request.get_json(silent=True) or {}
-    status = data.get('status')
-    notes = data.get('notes')
-    allowed_statuses = {'Pending', 'Under Review', 'Approved', 'Rejected', 'Returned'}
-    if status not in allowed_statuses:
+    if not validate_csrf():
+        return jsonify({'error': 'Invalid CSRF token'}), 403
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Claim review must be a JSON object.'}), 400
+    status, notes = data.get('status'), data.get('notes')
+    transitions = {
+        'Pending': {'Pending', 'Under Review', 'Approved', 'Rejected'},
+        'Under Review': {'Pending', 'Under Review', 'Approved', 'Rejected'},
+        'Approved': {'Approved', 'Returned'},
+        'Rejected': {'Rejected'},
+        'Returned': {'Returned', 'Approved'},
+    }
+    if status not in transitions:
         return jsonify({'error': 'Invalid claim status.'}), 400
-    if notes is not None and len(str(notes)) > 2000:
-        return jsonify({'error': 'Staff notes are too long.'}), 400
-
-    conn = None
-    cursor = None
+    if notes is not None and (not isinstance(notes, str) or len(notes) > 2000):
+        return jsonify({'error': 'Staff notes must be text no longer than 2000 characters.'}), 400
+    conn = cursor = None
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE claimed_items SET status = %s, staff_notes = %s, date_updated = CURRENT_TIMESTAMP WHERE item_code = %s",
-            (status, notes if notes is not None else None, item_code),
-        )
-        if cursor.rowcount == 0:
+        cursor = conn.cursor(dictionary=True)
+        # Resolve the item first; submissions and reviews always lock the item before the claim.
+        if claim_id is not None:
+            cursor.execute('SELECT item_code FROM claimed_items WHERE claimed_item_id=%s', (claim_id,))
+            reference = cursor.fetchone()
+            if not reference:
+                return jsonify({'error': 'Claim not found'}), 404
+            item_code = reference['item_code']
+        cursor.execute('SELECT STATUS, close_at > NOW() AS unexpired FROM items WHERE item_code=%s FOR UPDATE', (item_code,))
+        item = cursor.fetchone()
+        cursor.execute('SELECT claimed_item_id,status FROM claimed_items WHERE ' +
+                       ('claimed_item_id=%s' if claim_id is not None else 'item_code=%s') +
+                       ' ORDER BY claimed_item_id DESC LIMIT 1 FOR UPDATE',
+                       (claim_id if claim_id is not None else item_code,))
+        claim = cursor.fetchone()
+        if not claim or not item:
             return jsonify({'error': 'Claim not found'}), 404
+        if status not in transitions[claim['status']]:
+            return jsonify({'error': 'This claim decision is final. Review the current active claim instead.'}), 409
+        if status == 'Approved' and claim['status'] not in ('Approved', 'Returned') and (item['STATUS'] != 'open' or not item['unexpired']):
+            return jsonify({'error': 'This item has expired and cannot be approved.'}), 409
+        cursor.execute('UPDATE claimed_items SET status=%s, staff_notes=COALESCE(%s,staff_notes), date_updated=CURRENT_TIMESTAMP WHERE claimed_item_id=%s',
+                       (status, notes, claim['claimed_item_id']))
         conn.commit()
         return jsonify({'message': 'Claim status updated.'}), 200
+    except Exception as error:
+        if conn:
+            conn.rollback()
+        conflict = claim_database_error(error)
+        if conflict:
+            return conflict
+        app.logger.exception('Claim review failed')
+        return jsonify({'error': 'Unable to update the claim. Please try again.'}), 500
     finally:
         if cursor:
             cursor.close()
@@ -862,7 +914,8 @@ def update_claim_status(item_code):
 
 
 @app.route('/api/claims/<item_code>/evidence', methods=['GET'])
-def get_claim_evidence(item_code):
+@app.route('/api/claim-records/<int:claim_id>/evidence', methods=['GET'])
+def get_claim_evidence(item_code=None, claim_id=None):
     error_response = require_staff()
     if error_response:
         return error_response
@@ -872,7 +925,7 @@ def get_claim_evidence(item_code):
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute('SELECT evidence_file_path FROM claimed_items WHERE item_code = %s', (item_code,))
+        cursor.execute('SELECT evidence_file_path FROM claimed_items WHERE ' + ('claimed_item_id=%s' if claim_id is not None else 'item_code=%s') + ' ORDER BY claimed_item_id DESC LIMIT 1', (claim_id if claim_id is not None else item_code,))
         claim = cursor.fetchone()
         if not claim or not claim['evidence_file_path']:
             return jsonify({'error': 'No evidence is attached.'}), 404
@@ -904,7 +957,7 @@ def get_unarchive_details(item_code):
         query = """
             SELECT *
             FROM unarchived_items
-            WHERE item_code = %s
+            WHERE item_code = %s ORDER BY unarchived_item_id DESC LIMIT 1
         """
 
         cursor.execute(query, (item_code,))
@@ -960,7 +1013,11 @@ def unarchive_item():
     except Exception as e:
         if conn:
             conn.rollback()
-        return jsonify({'error': f'Database execution failure: {str(e)}'}), 500
+        conflict = claim_database_error(e)
+        if conflict:
+            return conflict
+        app.logger.exception('Item restore failed')
+        return jsonify({'error': 'Unable to restore this item. Please try again.'}), 500
     finally:
         if cursor:
             cursor.close()

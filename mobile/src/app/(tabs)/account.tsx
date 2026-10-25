@@ -1,7 +1,8 @@
+import { useAppDialog } from '@/src/components/AppDialog';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton, Eyebrow, Heading, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
@@ -9,22 +10,25 @@ import { useAuth } from '@/src/features/auth/AuthContext';
 import { colors } from '@/src/theme/colors';
 
 export default function AccountScreen() {
+  const { confirm, notify, dialog } = useAppDialog();
   const { user, isLoading, authError, refreshAuth, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
 
   async function handleSignOut() {
+    if (signingOut) return;
     setSigningOut(true);
     try {
+      if (!await confirm({ title: 'Sign out?', message: 'You will need to sign in again to report items or review claims.', confirmLabel: 'Sign out' })) return;
       await signOut();
     } catch (error) {
-      Alert.alert('Sign out issue', error instanceof Error ? error.message : 'Unable to confirm sign-out. Please retry.');
+      await notify({ title: 'Sign out issue', message: error instanceof Error ? error.message : 'Unable to confirm sign-out. Please retry.', tone: 'error' });
     } finally {
       setSigningOut(false);
     }
   }
 
   return (
-    <Page>
+    <Page>{dialog}
       <SafeAreaView edges={['top']} style={styles.safe}>
         <ScrollView contentContainerStyle={styles.content}>
           <Eyebrow>YOUR ACCOUNT</Eyebrow>

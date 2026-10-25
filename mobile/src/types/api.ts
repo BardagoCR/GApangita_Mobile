@@ -64,6 +64,7 @@ export type ImageAttachment = {
   name: string;
   mimeType: string;
   file?: Blob;
+  size?: number;
 };
 
 export type ReportInput = {

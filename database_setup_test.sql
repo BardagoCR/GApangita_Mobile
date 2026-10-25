@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS items (
 CREATE TABLE IF NOT EXISTS claimed_items ( -- new table
     claimed_item_id INT AUTO_INCREMENT PRIMARY KEY,
     claimed_item_code VARCHAR(15) UNIQUE,
-    item_code VARCHAR(15) NOT NULL UNIQUE, -- Foreign
+    item_code VARCHAR(15) NOT NULL, -- Foreign
     claimer_first_name VARCHAR(50) NOT NULL,
     claimer_middle_name VARCHAR(50) DEFAULT NULL,
     claimer_last_name VARCHAR(50) NOT NULL,
@@ -86,6 +86,10 @@ CREATE TABLE IF NOT EXISTS claimed_items ( -- new table
     additional_evidence TEXT,
     evidence_file_path VARCHAR(255),
     status ENUM('Pending', 'Under Review', 'Approved', 'Rejected', 'Returned') NOT NULL DEFAULT 'Pending',
+    active_item_code VARCHAR(15) GENERATED ALWAYS AS
+      (CASE WHEN status IN ('Pending','Under Review','Approved','Returned') THEN item_code ELSE NULL END) STORED,
+    UNIQUE KEY uq_claim_active_item (active_item_code),
+    KEY idx_claim_item_history (item_code, claimed_item_id),
     staff_notes TEXT,
     date_claimed DATETIME DEFAULT CURRENT_TIMESTAMP,
     date_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -154,33 +158,19 @@ CREATE TABLE LOGS (
 -- 1
 DROP VIEW IF EXISTS vw_openAllItems;
 CREATE VIEW vw_openAllItems AS
-SELECT
-	i.item_id,
-	i.item_code,
-	i.item_type,
-	CASE
-		WHEN i.STATUS <> 'open' THEN 'Closed'
-		WHEN cl.status IN ('Pending', 'Under Review') THEN 'Under Verification'
-		WHEN cl.status = 'Approved' THEN 'Unavailable'
-		WHEN cl.status = 'Rejected' THEN 'Contact Staff'
-		WHEN cl.status = 'Returned' THEN 'Closed'
-		ELSE 'Available'
-	END AS status,
-	i.category_code,
-	c.name AS categoryName,
-	i.public_color,
-	i.branch_code,
-	b.name AS branchName,
-	DATE(i.date_found) AS date_found,
-	i.date_reported
-FROM items AS i
-LEFT JOIN categories AS c ON i.category_code = c.category_code
-LEFT JOIN branches AS b ON i.branch_code = b.branch_code
-LEFT JOIN (
-	SELECT item_code, status
-	FROM claimed_items
-) AS cl ON cl.item_code = i.item_code
-WHERE i.STATUS = 'open' OR cl.status IN ('Pending', 'Under Review', 'Rejected');
+SELECT i.item_id, i.item_code, i.item_type,
+ CASE WHEN cl.status IN ('Pending','Under Review') THEN 'Under Verification'
+      ELSE 'Available' END AS status,
+ i.category_code, c.name AS categoryName, i.public_color,
+ i.branch_code, b.name AS branchName, i.location_code,
+ DATE(i.date_found) AS date_found, i.date_reported
+FROM items i
+LEFT JOIN categories c ON c.category_code=i.category_code
+LEFT JOIN branches b ON b.branch_code=i.branch_code
+LEFT JOIN claimed_items cl ON cl.active_item_code=i.item_code
+WHERE i.STATUS='open'
+ AND COALESCE(i.close_at, DATE_ADD(i.date_reported, INTERVAL 21 DAY)) > NOW()
+ AND (cl.status IS NULL OR cl.status IN ('Pending','Under Review'));
 -- SELECT * FROM vw_openAllItems;
 
 -- 2
@@ -202,7 +192,7 @@ SELECT
 	i.NAME AS `name`,
 	i.DESCRIPTION AS `description`,
 	i.item_type,
-	i.STATUS AS `status`,
+	CASE WHEN i.STATUS='open' THEN 'closed' ELSE i.STATUS END AS `status`,
 	i.category_code,
 	c.name AS `categoryName`,
 	c.description AS `categoryDescription`,
@@ -221,7 +211,7 @@ LEFT JOIN branches AS b
 	ON i.branch_code = b.branch_code
 LEFT JOIN locations AS l
 	ON i.location_code = l.location_code
-WHERE STATUS = 'closed';
+WHERE (i.STATUS IN ('resolved','closed') OR COALESCE(i.close_at, DATE_ADD(i.date_reported, INTERVAL 21 DAY)) <= NOW());
 -- SELECT * FROM vw_closedAllItems;
 
 -- 5
@@ -233,7 +223,7 @@ SELECT
 	i.NAME AS `name`,
 	i.DESCRIPTION AS `description`,
 	i.item_type,
-	i.STATUS AS `status`,
+	CASE WHEN i.STATUS='open' THEN 'closed' ELSE i.STATUS END AS `status`,
 	i.category_code,
 	c.name AS `categoryName`,
 	c.description AS `categoryDescription`,
@@ -252,7 +242,7 @@ LEFT JOIN branches AS b
 	ON i.branch_code = b.branch_code
 LEFT JOIN locations AS l
 	ON i.location_code = l.location_code
-WHERE STATUS = 'closed' AND item_type = 'lost';
+WHERE (i.STATUS IN ('resolved','closed') OR COALESCE(i.close_at, DATE_ADD(i.date_reported, INTERVAL 21 DAY)) <= NOW()) AND item_type = 'lost';
 -- SELECT * FROM vw_closedLostItems;
 
 -- 6
@@ -264,7 +254,7 @@ SELECT
 	i.NAME AS `name`,
 	i.DESCRIPTION AS `description`,
 	i.item_type,
-	i.STATUS AS `status`,
+	CASE WHEN i.STATUS='open' THEN 'closed' ELSE i.STATUS END AS `status`,
 	i.category_code,
 	c.name AS `categoryName`,
 	c.description AS `categoryDescription`,
@@ -283,7 +273,7 @@ LEFT JOIN branches AS b
 	ON i.branch_code = b.branch_code
 LEFT JOIN locations AS l
 	ON i.location_code = l.location_code
-WHERE STATUS = 'closed' AND item_type = 'found';
+WHERE (i.STATUS IN ('resolved','closed') OR COALESCE(i.close_at, DATE_ADD(i.date_reported, INTERVAL 21 DAY)) <= NOW()) AND item_type = 'found';
 -- SELECT * FROM vw_closedFoundItems;
 
 -- 7
@@ -296,6 +286,7 @@ SELECT
 	i.NAME AS `name`,
 	i.DESCRIPTION AS `description`,
 	i.item_type,
+ i.STATUS AS status, i.public_color,
 	i.category_code,
 	c.name AS `categoryName`,
 	c.description AS `categoryDescription`,
@@ -337,6 +328,7 @@ SELECT
 	i.NAME AS `name`,
 	i.DESCRIPTION AS `description`,
 	i.item_type,
+ i.STATUS AS status, i.public_color,
 	i.category_code,
 	c.name AS `categoryName`,
 	c.description AS `categoryDescription`,
@@ -378,6 +370,7 @@ SELECT
 	i.NAME AS `name`,
 	i.DESCRIPTION AS `description`,
 	i.item_type,
+ i.STATUS AS status, i.public_color,
 	i.category_code,
 	c.name AS `categoryName`,
 	c.description AS `categoryDescription`,
@@ -511,32 +504,21 @@ CREATE PROCEDURE sp_insert_into_claimed_items(
     IN p_evidence_file_path VARCHAR(255)
 )
 BEGIN
-    DECLARE v_existing_claim INT DEFAULT 0;
-    DECLARE v_item_status VARCHAR(15);
-
-    SELECT COUNT(*) INTO v_existing_claim
-    FROM claimed_items
-    WHERE item_code = p_item_code;
-
-    SELECT STATUS INTO v_item_status
-    FROM items
-    WHERE item_code = p_item_code;
-
-    IF v_existing_claim > 0 THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'A claim already exists for this item.';
-    END IF;
-
+    DECLARE v_item_status VARCHAR(15) DEFAULT NULL;
+    DECLARE v_deadline DATETIME;
+    DECLARE v_active INT DEFAULT 0;
+    SELECT STATUS, COALESCE(close_at, DATE_ADD(date_reported, INTERVAL 21 DAY))
+      INTO v_item_status, v_deadline FROM items WHERE item_code=p_item_code FOR UPDATE;
     IF v_item_status IS NULL THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'The selected item does not exist.';
+        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30002, MESSAGE_TEXT='The selected item does not exist.';
     END IF;
-
-    IF v_item_status <> 'open' THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'The selected item is not available for claiming.';
+    SELECT COUNT(*) INTO v_active FROM claimed_items WHERE active_item_code=p_item_code;
+    IF v_active > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30001, MESSAGE_TEXT='An active claim already exists for this item.';
     END IF;
-
+    IF v_item_status <> 'open' OR v_deadline <= NOW() THEN
+        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30003, MESSAGE_TEXT='The selected item is no longer available for claiming.';
+    END IF;
     INSERT INTO claimed_items (
         item_code,
         claimer_first_name,
@@ -579,71 +561,34 @@ DROP PROCEDURE IF EXISTS sp_unarchive_item;
 
 DELIMITER $$
 
-CREATE PROCEDURE sp_unarchive_item (
-    IN p_item_code VARCHAR(15),
-    IN p_reason TEXT
-)
+CREATE PROCEDURE sp_unarchive_item(IN p_item_code VARCHAR(15), IN p_reason TEXT)
 BEGIN
-    DECLARE v_has_claim INT;
-    
-    START TRANSACTION;
-
-    UPDATE items
-    SET STATUS = 'open'
-    WHERE item_code = p_item_code;    
-
-    UPDATE items
-    SET times_unclaimed = COALESCE(times_unclaimed, 0) + 1
-    WHERE item_code = p_item_code;
-
-    SELECT COUNT(*) INTO v_has_claim 
-    FROM claimed_items 
-    WHERE item_code = p_item_code;
-
-    IF v_has_claim > 0 THEN
-        INSERT INTO unarchived_items (
-            item_code,
-            claimer_first_name,
-            claimer_middle_name,
-            claimer_last_name,
-            contact_number,
-            claimProof_file_path,
-            date_claimed,
-            reason
-        )
-        SELECT
-            item_code,
-            claimer_first_name,
-            claimer_middle_name,
-            claimer_last_name,
-            contact_number,
-            claimProof_file_path,
-            date_claimed,
-            p_reason
-        FROM claimed_items
-        WHERE item_code = p_item_code;
-
-        DELETE FROM claimed_items
-        WHERE item_code = p_item_code;
-    ELSE
- 
-        INSERT INTO unarchived_items (
-            item_code,
-            claimer_first_name,
-            claimer_last_name,
-            contact_number,
-            reason
-        )
-        VALUES (
-            p_item_code,
-            'SYSTEM',
-            'RESTORE',
-            'N/A',
-            p_reason
-        );
+    DECLARE v_status VARCHAR(15) DEFAULT NULL;
+    DECLARE v_deadline DATETIME;
+    DECLARE v_claims INT;
+    SELECT STATUS, close_at INTO v_status, v_deadline FROM items WHERE item_code=p_item_code FOR UPDATE;
+    IF v_status IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30002, MESSAGE_TEXT='Item not found.';
     END IF;
-
-    COMMIT;
+    IF EXISTS (SELECT 1 FROM claimed_items WHERE item_code=p_item_code AND status IN ('Approved','Returned')) THEN
+        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30004, MESSAGE_TEXT='An approved or returned item cannot be restored.';
+    END IF;
+    IF v_status='open' AND v_deadline > NOW() THEN
+        SIGNAL SQLSTATE '45000' SET MYSQL_ERRNO=30004, MESSAGE_TEXT='This item is already listed.';
+    END IF;
+    SELECT COUNT(*) INTO v_claims FROM claimed_items WHERE item_code=p_item_code;
+    IF v_claims > 0 THEN
+        INSERT INTO unarchived_items(item_code, claimer_first_name, claimer_middle_name,
+          claimer_last_name, contact_number, claimProof_file_path, date_claimed, reason)
+        SELECT item_code, claimer_first_name, claimer_middle_name, claimer_last_name,
+          contact_number, evidence_file_path, date_claimed, p_reason
+        FROM claimed_items WHERE item_code=p_item_code ORDER BY claimed_item_id DESC LIMIT 1;
+    ELSE
+        INSERT INTO unarchived_items(item_code, claimer_first_name, claimer_last_name, contact_number, reason)
+        VALUES(p_item_code,'SYSTEM','RESTORE','N/A',p_reason);
+    END IF;
+    UPDATE items SET STATUS='open', close_at=DATE_ADD(NOW(), INTERVAL 21 DAY),
+      times_unclaimed=COALESCE(times_unclaimed,0)+1 WHERE item_code=p_item_code;
 END$$
 
 DELIMITER ;
@@ -682,7 +627,7 @@ BEGIN
     -- Build formatted ID
     SET v_new_id = CONCAT(
         v_prefix,
-        LPAD(v_last_number, 4, '0')
+        LPAD(v_last_number, GREATEST(4, CHAR_LENGTH(v_last_number)), '0')
     );
 
     RETURN v_new_id;
@@ -845,12 +790,10 @@ DROP TRIGGER IF EXISTS trg_set_close_date;
 
 DELIMITER $$
 
-CREATE TRIGGER trg_set_close_date
-BEFORE INSERT ON items
-FOR EACH ROW
+CREATE TRIGGER trg_set_close_date BEFORE INSERT ON items FOR EACH ROW
 BEGIN
-    IF NEW.status = 'open' THEN
-        SET NEW.close_at = DATE_ADD(NOW(), INTERVAL 14 DAY);
+    IF NEW.status='open' THEN
+        SET NEW.close_at=DATE_ADD(COALESCE(NEW.date_reported,NOW()), INTERVAL 21 DAY);
     END IF;
 END$$
 
@@ -861,12 +804,11 @@ DROP TRIGGER IF EXISTS trg_reset_close_date;
 
 DELIMITER $$
 
-CREATE TRIGGER trg_reset_close_date
-BEFORE UPDATE ON items
-FOR EACH ROW
+CREATE TRIGGER trg_reset_close_date BEFORE UPDATE ON items FOR EACH ROW
 BEGIN
-    IF NEW.status = 'open' AND OLD.status <> 'open' THEN
-        SET NEW.close_at = DATE_ADD(NOW(), INTERVAL 14 DAY);
+    -- Rejection must never restart the original listing period.
+    IF NEW.status='open' AND NEW.close_at IS NULL THEN
+        SET NEW.close_at=DATE_ADD(NEW.date_reported, INTERVAL 21 DAY);
     END IF;
 END$$
 
@@ -893,17 +835,18 @@ DROP TRIGGER IF EXISTS trg_auto_resolved_claimed_items;
 
 DELIMITER $$
 
-CREATE TRIGGER trg_auto_resolved_claimed_items
-AFTER UPDATE ON claimed_items
-FOR EACH ROW
-WHEN OLD.status <> NEW.status AND NEW.status IN ('Approved', 'Returned')
+CREATE TRIGGER trg_auto_resolved_claimed_items AFTER UPDATE ON claimed_items FOR EACH ROW
 BEGIN
-    UPDATE items
-    SET STATUS = CASE NEW.status
-        WHEN 'Approved' THEN 'resolved'
-        WHEN 'Returned' THEN 'closed'
-    END
-    WHERE item_code = NEW.item_code;
+    IF OLD.status <> NEW.status THEN
+        IF NEW.status='Approved' THEN
+            UPDATE items SET STATUS='resolved' WHERE item_code=NEW.item_code;
+        ELSEIF NEW.status='Returned' THEN
+            UPDATE items SET STATUS='closed' WHERE item_code=NEW.item_code;
+        ELSEIF NEW.status='Rejected' THEN
+            UPDATE items SET STATUS=CASE WHEN close_at > NOW() THEN 'open' ELSE 'closed' END
+            WHERE item_code=NEW.item_code;
+        END IF;
+    END IF;
 END$$
 
 DELIMITER ;
@@ -1376,20 +1319,16 @@ DROP EVENT IF EXISTS ev_auto_close_items;
 -- 1
 DELIMITER $$
 
-CREATE EVENT ev_auto_close_items
-ON SCHEDULE EVERY 1 HOUR
+CREATE PROCEDURE sp_expire_items()
+BEGIN
+    UPDATE items SET STATUS='closed'
+    WHERE STATUS='open' AND COALESCE(close_at, DATE_ADD(date_reported, INTERVAL 21 DAY)) <= NOW();
+END$$
+
+CREATE EVENT ev_auto_close_items ON SCHEDULE EVERY 1 MINUTE
 DO
 BEGIN
-    UPDATE items AS i
-    SET STATUS = 'closed'
-    WHERE i.STATUS = 'open'
-      AND i.close_at <= NOW()
-      AND NOT EXISTS (
-          SELECT 1
-          FROM claimed_items AS cl
-          WHERE cl.item_code = i.item_code
-            AND cl.status IN ('Pending', 'Under Review')
-      );
+    CALL sp_expire_items();
 END$$
 
 DELIMITER ;

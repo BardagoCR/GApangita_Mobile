@@ -1,0 +1,377 @@
+{
+  "marker": "E2E-5f0a0b2c89bd",
+  "api": "http://127.0.0.1:5000/api",
+  "scope": "live HTTP API, real MySQL, real upload files; native phone UI not exercised",
+  "checks": [
+    {
+      "name": "/health",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "/ready",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "staff login and CSRF cookie session",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "report lookup /categories",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "report lookup /branches",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "report lookup /locations/by-branch/BRH0001",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "guest reporting is rejected",
+      "passed": true,
+      "status": 401
+    },
+    {
+      "name": "report no-evidence HTTP acknowledgement",
+      "passed": true,
+      "status": 201,
+      "response": {
+        "id": 0,
+        "message": "Item reported successfully"
+      }
+    },
+    {
+      "name": "report no-evidence persisted once",
+      "passed": true,
+      "row_count": 1
+    },
+    {
+      "name": "new report receives 21-day expiry no-evidence",
+      "passed": true
+    },
+    {
+      "name": "report png-evidence HTTP acknowledgement",
+      "passed": true,
+      "status": 201,
+      "response": {
+        "id": 0,
+        "message": "Item reported successfully"
+      }
+    },
+    {
+      "name": "report png-evidence persisted once",
+      "passed": true,
+      "row_count": 1
+    },
+    {
+      "name": "new report receives 21-day expiry png-evidence",
+      "passed": true
+    },
+    {
+      "name": "report pdf-evidence HTTP acknowledgement",
+      "passed": true,
+      "status": 201,
+      "response": {
+        "id": 0,
+        "message": "Item reported successfully"
+      }
+    },
+    {
+      "name": "report pdf-evidence persisted once",
+      "passed": true,
+      "row_count": 1
+    },
+    {
+      "name": "new report receives 21-day expiry pdf-evidence",
+      "passed": true
+    },
+    {
+      "name": "signed-in staff cannot claim",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "name": "claim no-evidence HTTP acknowledgement",
+      "passed": true,
+      "status": 201,
+      "response": {
+        "item_code": "ITM0236",
+        "message": "Claim submitted for staff review."
+      },
+      "fixture_source": "HTTP report"
+    },
+    {
+      "name": "claim no-evidence persisted Pending",
+      "passed": true,
+      "row_count": 1
+    },
+    {
+      "name": "no-evidence claim has no attachment",
+      "passed": true
+    },
+    {
+      "name": "duplicate claim returns useful conflict",
+      "passed": true,
+      "status": 409,
+      "response": {
+        "error": "An active claim already exists for this item."
+      }
+    },
+    {
+      "name": "duplicate did not create another row",
+      "passed": true
+    },
+    {
+      "name": "staff can inspect no-evidence",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "Pending claim blocks public claiming no-evidence",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "claim png-evidence HTTP acknowledgement",
+      "passed": true,
+      "status": 201,
+      "response": {
+        "item_code": "ITM0237",
+        "message": "Claim submitted for staff review."
+      },
+      "fixture_source": "HTTP report"
+    },
+    {
+      "name": "claim png-evidence persisted Pending",
+      "passed": true,
+      "row_count": 1
+    },
+    {
+      "name": "staff can retrieve png-evidence byte-for-byte",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "guest cannot retrieve png-evidence",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "name": "staff can inspect png-evidence",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "Pending claim blocks public claiming png-evidence",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "claim pdf-evidence HTTP acknowledgement",
+      "passed": true,
+      "status": 201,
+      "response": {
+        "item_code": "ITM0238",
+        "message": "Claim submitted for staff review."
+      },
+      "fixture_source": "HTTP report"
+    },
+    {
+      "name": "claim pdf-evidence persisted Pending",
+      "passed": true,
+      "row_count": 1
+    },
+    {
+      "name": "staff can retrieve pdf-evidence byte-for-byte",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "guest cannot retrieve pdf-evidence",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "name": "staff can inspect pdf-evidence",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "Pending claim blocks public claiming pdf-evidence",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "staff review Under Review persisted",
+      "passed": true,
+      "status": 200,
+      "claim_status": "Under Review",
+      "item_status": "open"
+    },
+    {
+      "name": "staff review Approved persisted",
+      "passed": true,
+      "status": 200,
+      "claim_status": "Approved",
+      "item_status": "resolved"
+    },
+    {
+      "name": "staff review Returned persisted",
+      "passed": true,
+      "status": 200,
+      "claim_status": "Returned",
+      "item_status": "closed"
+    },
+    {
+      "name": "staff review Approved persisted",
+      "passed": true,
+      "status": 200,
+      "claim_status": "Approved",
+      "item_status": "resolved"
+    },
+    {
+      "name": "staff review Returned persisted",
+      "passed": true,
+      "status": 200,
+      "claim_status": "Returned",
+      "item_status": "closed"
+    },
+    {
+      "name": "approved/returned item cannot be restored",
+      "passed": true,
+      "status": 409,
+      "response": {
+        "error": "An approved or returned item cannot be restored."
+      }
+    },
+    {
+      "name": "rejection automatically relists as claimable",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "rejection preserves original expiry",
+      "passed": true
+    },
+    {
+      "name": "new claimant can submit after rejection",
+      "passed": true,
+      "status": 201,
+      "response": {
+        "item_code": "ITM0237",
+        "message": "Claim submitted for staff review."
+      }
+    },
+    {
+      "name": "historical claim remains individually accessible",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "rejected claim evidence is retained byte-for-byte",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "old rejected claim cannot override new claimant",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "name": "saving unchanged status succeeds 1",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "saving unchanged status succeeds 2",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "approval removes item from public listing and archives it",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "staff queue includes both claim IDs",
+      "passed": true
+    },
+    {
+      "name": "three-week expiry hides pending item immediately",
+      "passed": true,
+      "status": 404
+    },
+    {
+      "name": "expired claim cannot be approved",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "name": "rejection after expiry keeps item archived",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "restore expired item with claim history succeeds",
+      "passed": true,
+      "status": 200,
+      "response": {
+        "message": "Item successfully restored and tracking log registered."
+      }
+    },
+    {
+      "name": "explicit restore starts a fresh 21 days",
+      "passed": true
+    },
+    {
+      "name": "restore retains rejected PDF evidence and claim",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "restore tracking copies the evidence path",
+      "passed": true
+    },
+    {
+      "name": "concurrent submissions accept exactly one claim",
+      "passed": true,
+      "outcomes": [
+        30001,
+        201
+      ]
+    },
+    {
+      "name": "concurrent submissions retain history and one active claim",
+      "passed": true
+    },
+    {
+      "name": "staff logout",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "fixture rows cleaned",
+      "passed": true,
+      "fixture_count": 3
+    },
+    {
+      "name": "fixture files cleaned",
+      "passed": true,
+      "removed": [
+        "backend\\uploads\\items\\item_6bb464eed22f44e891027096afc2c8eb.png",
+        "backend\\uploads\\evidence\\claim_34b8f4fd546e4a6c9147d550217a71b4.png",
+        "backend\\uploads\\evidence\\claim_4ccb5d46a9824ffaabd655c950335995.pdf",
+        "backend\\uploads\\items\\item_5c4e6546afde44f58c7641cd8d43244e.png"
+      ],
+      "remaining": []
+    }
+  ],
+  "counter_policy": "Generated ID counters were not reset; normal sequence gaps may remain."
+}

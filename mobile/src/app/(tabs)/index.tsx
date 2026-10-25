@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -24,6 +24,7 @@ import { colors } from '@/src/theme/colors';
 type ItemTypeFilter = 'all' | 'lost' | 'found';
 
 export default function FindScreen() {
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const logoSize = Math.min(104, Math.max(72, windowWidth * 0.26));
@@ -73,6 +74,7 @@ export default function FindScreen() {
   }, [branchCode]);
 
   useEffect(() => {
+    if (!isFocused) return;
     let cancelled = false;
     const controller = new AbortController();
     const timer = setTimeout(() => {
@@ -108,7 +110,7 @@ export default function FindScreen() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [name, description, type, categoryCode, branchCode, locationCode, page, hasCriteria, retryKey]);
+  }, [name, description, type, categoryCode, branchCode, locationCode, page, hasCriteria, retryKey, isFocused]);
 
   function updateType(nextType: ItemTypeFilter) {
     setType(nextType);

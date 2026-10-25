@@ -10,7 +10,7 @@ import type {
   User,
 } from '@/src/types/api';
 import { Platform } from 'react-native';
-import { request } from './client';
+import { ApiError, request } from './client';
 
 export type SearchFilters = {
   name?: string;
@@ -102,41 +102,62 @@ export async function submitReport(input: ReportInput) {
 }
 
 export async function submitClaim(input: ClaimInput) {
+  const fields: Record<string, string> = {
+    item_code: input.itemCode,
+    claimer_first_name: input.firstName.trim(),
+    claimer_middle_name: input.middleName.trim(),
+    claimer_last_name: input.lastName.trim(),
+    contact_number: input.contactNumber.trim(),
+    claimant_email: input.email.trim(),
+    claimant_affiliation: input.affiliation,
+    last_seen_location: input.lastSeenLocation.trim(),
+    last_seen_date_time: input.lastSeenDateTime.trim(),
+    item_description: input.itemDescription.trim(),
+    identifying_features: input.identifyingFeatures.trim(),
+    contents: input.contents.trim(),
+    additional_evidence: input.additionalEvidence.trim(),
+  };
+  if (!input.evidence) {
+    return request<{ message: string; item_code: string }>('/claims', { method: 'POST', body: JSON.stringify(fields) });
+  }
+  const evidenceSize = input.evidence.size ?? input.evidence.file?.size;
+  if (evidenceSize !== undefined && (evidenceSize <= 0 || evidenceSize > 5 * 1024 * 1024)) {
+    throw new Error('Evidence must be a non-empty file no larger than 5 MB. Choose a smaller file or remove it; evidence is optional.');
+  }
   const form = new FormData();
-  form.append('item_code', input.itemCode);
-  form.append('claimer_first_name', input.firstName.trim());
-  form.append('claimer_middle_name', input.middleName.trim());
-  form.append('claimer_last_name', input.lastName.trim());
-  form.append('contact_number', input.contactNumber.trim());
-  form.append('claimant_email', input.email.trim());
-  form.append('claimant_affiliation', input.affiliation);
-  form.append('last_seen_location', input.lastSeenLocation.trim());
-  if (input.lastSeenDateTime) form.append('last_seen_date_time', input.lastSeenDateTime);
-  form.append('item_description', input.itemDescription.trim());
-  form.append('identifying_features', input.identifyingFeatures.trim());
-  form.append('contents', input.contents.trim());
-  form.append('additional_evidence', input.additionalEvidence.trim());
-  if (input.evidence) await appendImage(form, 'evidence', input.evidence);
-  return request<{ message: string; item_code: string }>('/claims', { method: 'POST', body: form });
+  for (const [key, value] of Object.entries(fields)) form.append(key, value);
+  try {
+    await appendImage(form, 'evidence', input.evidence);
+  } catch {
+    throw new Error('Could not read the evidence attachment. Choose the file again, or remove it to submit without evidence.');
+  }
+  try {
+    return await request<{ message: string; item_code: string }>('/claims', { method: 'POST', body: form });
+  } catch (reason) {
+    if (reason instanceof ApiError && reason.status === 0) {
+      throw new ApiError(reason.message + ' If this only happens with an attachment, choose the file again. Evidence is optional; check whether the claim was saved before submitting again.', 0);
+    }
+    throw reason;
+  }
 }
 
 export async function getClaimQueue() {
   return request<{ claims: Claim[] }>('/claims');
 }
 
-export async function getClaimDetails(itemCode: string) {
-  return request<Claim & { item_name: string; item_description_private: string; item_status: string; location_code: string; item_file_path: string | null; public_color: string | null }>(`/claims/${encodeURIComponent(itemCode)}`);
+export async function getClaimDetails(itemCode: string, claimId?: number) {
+  return request<Claim & { item_description: string; item_name: string; item_description_private: string; item_status: string; location_code: string; item_file_path: string | null; public_color: string | null }>(claimId ? `/claim-records/${claimId}` : `/claims/${encodeURIComponent(itemCode)}`);
 }
 
-export async function updateClaimStatus(itemCode: string, status: Claim['status'], notes: string) {
-  return request<{ message: string }>(`/claims/${encodeURIComponent(itemCode)}/status`, {
+export async function updateClaimStatus(itemCode: string, status: Claim['status'], notes: string, claimId?: number) {
+  return request<{ message: string }>(claimId ? `/claim-records/${claimId}/status` : `/claims/${encodeURIComponent(itemCode)}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status, notes }),
   });
 }
 
-export async function getClaimEvidence(itemCode: string) {
-  return request<Blob>(`/claims/${encodeURIComponent(itemCode)}/evidence`, {}, 'blob');
+export async function getClaimEvidence(itemCode: string, claimId?: number) {
+  return request<Blob>(claimId ? `/claim-records/${claimId}/evidence` : `/claims/${encodeURIComponent(itemCode)}/evidence`, {}, 'blob');
 }
 
 export async function getUnarchivedItem(itemCode: string) {
