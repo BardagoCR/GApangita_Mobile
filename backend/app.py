@@ -40,7 +40,7 @@ db_config = {
 }
 
 # FOR ITEM AND CLAIMANT CAMERA
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = os.path.join(app.root_path, 'uploads')
 
 ITEM_UPLOAD_FOLDER = os.path.join(UPLOAD_FOLDER, 'items')
 CLAIMANT_UPLOAD_FOLDER = os.path.join(UPLOAD_FOLDER, 'claimant')
@@ -153,6 +153,7 @@ def check_claim_rate_limit(ip_address):
 def public_item_row(row):
     return {
         'item_code': row['item_code'],
+        'name': row.get('name'),
         'item_type': row['item_type'],
         'status': row['status'],
         'categoryName': row['categoryName'],
@@ -193,6 +194,28 @@ def levenshtein_distance(s1, s2):
         previous_row = current_row
     return previous_row[-1]
 
+def public_search_score(query, item):
+    """Rank public fields only, tolerating small spelling errors in each search term."""
+    name = ' '.join(str(item.get('name') or '').casefold().split())
+    fields = [name] + [str(item.get(key) or '').casefold() for key in
+                       ('categoryName', 'public_color', 'branchName', 'item_type', 'item_code')]
+    candidates = [field for field in fields if field]
+    candidates += [word for field in fields for word in field.split()]
+    terms = query.casefold().split()
+    if not terms:
+        return 0
+    scores = []
+    for term in terms:
+        best = max((1 - levenshtein_distance(term, candidate) / max(len(term), len(candidate))
+                    for candidate in candidates), default=0)
+        if best < 0.6:
+            return None
+        scores.append(best)
+    normalized = ' '.join(terms)
+    name_bonus = 20 if normalized == name else 10 if normalized in name else 0
+    return sum(scores) / len(scores) * 100 + name_bonus
+
+
 def validate_csrf():
     token = request.headers.get('X-CSRF-Token')
 
@@ -214,6 +237,11 @@ def uploaded_file(filename):
     if normalized_filename.startswith('claimant/') and not is_staff():
         return jsonify({'error': 'Unauthorized'}), 403
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.errorhandler(413)
+def upload_too_large(error):
+    return jsonify({'error': 'The upload is too large. Choose a photo or evidence file no larger than 5 MB.'}), 413
+
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
@@ -289,7 +317,19 @@ def report_item():
     if not validate_csrf():
         return jsonify({'error': 'Invalid CSRF token'}), 403
 
-    data = request.form
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if not isinstance(data, dict) and not hasattr(data, 'getlist'):
+        return jsonify({'error': 'Report fields must be an object.'}), 400
+
+    phone = data.get('reporter_contact_number', '')
+    email = data.get('reporter_email', '')
+    if not isinstance(phone, str) or not isinstance(email, str):
+        return jsonify({'error': 'Contact number and email must be text.'}), 400
+    phone, email = phone.strip(), email.strip()
+    if len(phone) > 20 or not re.fullmatch(r'\+?[0-9 ()-]+', phone) or not 7 <= len(re.sub(r'\D', '', phone)) <= 15:
+        return jsonify({'error': 'Enter a valid reporter contact number with 7 to 15 digits (maximum 20 characters).'}), 400
+    if len(email) > 254 or not re.fullmatch(EMAIL_REGEX, email):
+        return jsonify({'error': 'Enter a valid reporter email address (maximum 254 characters).'}), 400
 
     name = data.get('name', '').strip()
     description = data.get('description', '').strip()
@@ -332,25 +372,28 @@ def report_item():
     
     item_file_path = None
 
-    # Save item image
-    if item_image and allowed_file(item_image.filename):
-        ext = item_image.filename.rsplit('.', 1)[1].lower()
-        filename = f"item_{uuid.uuid4().hex}.{ext}"
-        
-        # RELATIVE path (store in DB)
-        item_file_path = f"items/{filename}"
-        
-        # ACTUAL save path
-        save_path = os.path.join(UPLOAD_FOLDER, item_file_path)
-        item_image.save(save_path)
+    if item_type == 'found' and (not item_image or not item_image.filename):
+        return jsonify({'error': 'Add a photo for a found item.'}), 400
+    if item_image and item_image.filename:
+        extension = item_image.filename.rsplit('.', 1)[-1].lower()
+        if extension not in {'jpg', 'jpeg', 'png', 'gif', 'webp'}:
+            return jsonify({'error': 'Report photos must be JPEG, PNG, GIF, or WebP images.'}), 400
+        _, validation_error = validate_evidence_file(item_image)
+        if validation_error:
+            return jsonify({'error': validation_error.replace('Evidence', 'Report photo')}), 400
 
+    conn = cursor = None
     try:
+        if item_image and item_image.filename:
+            extension = item_image.filename.rsplit('.', 1)[-1].lower()
+            item_file_path = f"items/item_{uuid.uuid4().hex}.{extension}"
+            item_image.save(os.path.join(UPLOAD_FOLDER, item_file_path))
         conn = get_db_connection()
         cursor = conn.cursor()
         set_db_user_context(cursor)
 
         query = """
-            CALL sp_submit_report(%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            CALL sp_submit_report(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         values = (
             name,
@@ -362,17 +405,27 @@ def report_item():
             item_file_path,
             date_found,
             public_color,
+            phone,
+            email,
         )
         
         cursor.execute(query, values)
         conn.commit()
         return jsonify({'message': 'Item reported successfully', 'id': cursor.lastrowid}), 201
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        if conn:
+            conn.rollback()
+        if item_file_path:
+            try:
+                os.remove(os.path.join(UPLOAD_FOLDER, item_file_path))
+            except OSError:
+                pass
+        app.logger.exception('Report submission failed')
+        return jsonify({'error': 'Unable to save the report. Check server storage and database availability, then retry after checking whether the report exists.'}), 500
     finally:
-        if 'cursor' in locals():
+        if cursor:
             cursor.close()
-        if 'conn' in locals() and conn.is_connected():
+        if conn and conn.is_connected():
             conn.close()
 
 @app.route('/api/search', methods=['GET'])
@@ -410,7 +463,9 @@ def search_openItems():
         not unarchive_page and
         status != 'closed' and
         not browse_all and
+        filter_itemType not in ('lost', 'found') and
         not name_q and
+        not q and
         not desc_q and
         not category_code and
         not branch_code and
@@ -484,24 +539,13 @@ def search_openItems():
         items = cursor.fetchall()
         
         public_items = []
+        queries = [value for value in (name_q or q, desc_q) if value]
         for item in items:
-            searchable_text = ' '.join(
-                str(value).lower()
-                for value in (
-                    item.get('categoryName'),
-                    item.get('public_color'),
-                    item.get('branchName'),
-                    item.get('item_type'),
-                    item.get('item_code'),
-                )
-                if value
-            )
-            score = 0
-            if name_q:
-                score = max(score, 100 - levenshtein_distance(name_q, searchable_text))
-            if desc_q:
-                score = max(score, 100 - levenshtein_distance(desc_q, searchable_text))
-            public_items.append((public_item_row(item), score))
+            scores = [public_search_score(query, item) for query in queries]
+            if any(score is None for score in scores):
+                continue
+            public_items.append((public_item_row(item), sum(scores)))
+        total = len(public_items)
 
         public_items.sort(key=lambda pair: pair[1], reverse=True)
         paginated_items = [item for item, _ in public_items[offset : offset + limit]]
@@ -604,13 +648,17 @@ def get_open_item(item_code):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            "SELECT item_code, item_type, status, category_code, categoryName, public_color, branch_code, branchName, date_found, date_reported FROM vw_openAllItems WHERE item_code = %s",
+            "SELECT item_code, name, item_type, status, category_code, categoryName, public_color, branch_code, branchName, date_found, date_reported FROM vw_openAllItems WHERE item_code = %s",
             (item_code,)
         )
         item = cursor.fetchone()
         if not item:
             return jsonify({'error': 'Item not found'}), 404
-        return jsonify(public_item_row(item)), 200
+        result = public_item_row(item)
+        if is_staff():
+            cursor.execute('SELECT reporter_contact_number,reporter_email FROM items WHERE item_code=%s', (item_code,))
+            result.update(cursor.fetchone() or {})
+        return jsonify(result), 200
     except Exception:
         app.logger.exception('Could not load item details')
         return jsonify({'error': 'Unable to load item details'}), 500
@@ -833,7 +881,7 @@ def get_claim_details(item_code=None, claim_id=None):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            "SELECT c.*, i.NAME AS item_name, i.DESCRIPTION AS item_description_private, i.item_type, i.STATUS AS item_status, i.location_code, i.item_file_path, i.public_color FROM claimed_items AS c JOIN items AS i ON i.item_code = c.item_code WHERE " + ("c.claimed_item_id = %s" if claim_id is not None else "c.item_code = %s") + " ORDER BY c.claimed_item_id DESC LIMIT 1",
+            "SELECT c.*, i.NAME AS item_name, i.DESCRIPTION AS item_description_private, i.item_type, i.STATUS AS item_status, i.location_code, i.item_file_path, i.public_color, i.reporter_contact_number, i.reporter_email FROM claimed_items AS c JOIN items AS i ON i.item_code = c.item_code WHERE " + ("c.claimed_item_id = %s" if claim_id is not None else "c.item_code = %s") + " ORDER BY c.claimed_item_id DESC LIMIT 1",
             (claim_id if claim_id is not None else item_code,),
         )
         claim = cursor.fetchone()

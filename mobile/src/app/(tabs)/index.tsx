@@ -30,7 +30,6 @@ export default function FindScreen() {
   const logoSize = Math.min(104, Math.max(72, windowWidth * 0.26));
   const searchRef = useRef<TextInput>(null);
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [type, setType] = useState<ItemTypeFilter>('all');
   const [categoryCode, setCategoryCode] = useState('');
   const [branchCode, setBranchCode] = useState('');
@@ -46,7 +45,7 @@ export default function FindScreen() {
   const [retryKey, setRetryKey] = useState(0);
   const [hasLoadedResults, setHasLoadedResults] = useState(false);
   const hasCriteria = Boolean(
-    name.trim() || description.trim() || type !== 'all' || categoryCode || branchCode || locationCode,
+    name.trim() || type !== 'all' || categoryCode || branchCode || locationCode,
   );
 
   useEffect(() => {
@@ -82,7 +81,6 @@ export default function FindScreen() {
       setError('');
       void searchItems({
         name,
-        description,
         type,
         categoryCode,
         branchCode,
@@ -110,7 +108,7 @@ export default function FindScreen() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [name, description, type, categoryCode, branchCode, locationCode, page, hasCriteria, retryKey, isFocused]);
+  }, [name, type, categoryCode, branchCode, locationCode, page, hasCriteria, retryKey, isFocused]);
 
   function updateType(nextType: ItemTypeFilter) {
     setType(nextType);
@@ -131,7 +129,8 @@ export default function FindScreen() {
               setName(value);
               setPage(1);
             }}
-            placeholder="What are you looking for?"
+            placeholder="Search item name, color, or reference"
+            accessibilityLabel="Search listings"
             placeholderTextColor={colors.muted}
             returnKeyType="search"
             style={styles.searchInput}
@@ -142,17 +141,6 @@ export default function FindScreen() {
             </Pressable>
           ) : null}
         </View>
-
-        <TextInput
-          value={description}
-          onChangeText={(value) => {
-            setDescription(value);
-            setPage(1);
-          }}
-          placeholder="Add details like color or brand"
-          placeholderTextColor={colors.muted}
-          style={styles.detailInput}
-        />
 
         <View style={styles.typeRow}>
           {(['all', 'lost', 'found'] as const).map((option) => (
@@ -432,13 +420,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 14,
     paddingVertical: 10,
-  },
-  detailInput: {
-    ...field,
-    height: 52,
-    paddingHorizontal: 16,
-    color: colors.ink,
-    fontSize: 14,
   },
 
   // Type chips

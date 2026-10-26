@@ -58,14 +58,14 @@ export function OptionalDateTimeField({ label, value, onChange, error, onLayout 
             mode={mode}
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             maximumDate={mode === 'date' ? new Date() : undefined}
-            onChange={(event, date) => {
+            onValueChange={(_, date) => {
               if (Platform.OS === 'android') {
-                setMode(null);
-                if (event.type === 'set' && date) confirm(date);
-              } else if (date) {
+                confirm(date);
+              } else {
                 setDraft(date);
               }
             }}
+            onDismiss={() => setMode(null)}
           />
           {Platform.OS === 'ios' ? <View style={styles.row}>
             <ActionButton title="Done" onPress={() => confirm(draft)} />

@@ -22,6 +22,9 @@ export default function ReportScreen() {
   const { confirm, notify, dialog } = useAppDialog();
   const { user, isLoading: authLoading, authError, refreshAuth } = useAuth();
   const [name, setName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [contactErrors, setContactErrors] = useState<{ phone?: string; email?: string }>({});
   const [description, setDescription] = useState('');
   const [itemType, setItemType] = useState<'lost' | 'found'>('lost');
   const [categoryCode, setCategoryCode] = useState('');
@@ -69,18 +72,28 @@ export default function ReportScreen() {
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
-    setImage({ uri: asset.uri, name: asset.fileName || `item-${Date.now()}.jpg`, mimeType: asset.mimeType || 'image/jpeg', file: asset.file });
+    // Cropping can return a JPEG even when the original library filename was HEIC.
+    const extension = asset.uri.split(/[?#]/)[0].match(/\.(jpe?g|png|gif|webp)$/i)?.[1].toLowerCase();
+    const imageTypes: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+    setImage({ uri: asset.uri, name: extension ? `item-${Date.now()}.${extension}` : asset.fileName || `item-${Date.now()}.jpg`, mimeType: extension ? imageTypes[extension] : asset.mimeType || 'image/jpeg', file: asset.file, size: asset.fileSize });
   }
 
   async function handleSubmit() {
     if (submitting.current || loading || !user || authLoading || authError) return;
     setError('');
     setSuccess('');
+    const digits = contactNumber.replace(/\D/g, '');
+    const errors = {
+      phone: contactNumber.trim().length > 20 || !/^\+?[0-9 ()-]+$/.test(contactNumber.trim()) || digits.length < 7 || digits.length > 15 ? 'Enter a valid contact number with 7 to 15 digits (maximum 20 characters).' : undefined,
+      email: email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? 'Enter a valid email address (maximum 254 characters).' : undefined,
+    };
+    setContactErrors(errors);
     setSubmitAttempt((value) => value + 1);
     if (!name.trim() || !description.trim() || !categoryCode || !branchCode || !locationCode) {
       setError('Complete all required fields before submitting.');
       return;
     }
+    if (errors.phone || errors.email) { setError('Check the contact number and email address below.'); return; }
     if (description.trim().length < 8) { setError('Please add at least 8 characters to the description.'); return; }
     if (itemType === 'found' && !image) { setError('Add a photo for a found item.'); return; }
 
@@ -90,9 +103,9 @@ export default function ReportScreen() {
     setLoading(true);
     try {
       const dateValue = `${dateFound.getFullYear()}-${String(dateFound.getMonth() + 1).padStart(2, '0')}-${String(dateFound.getDate()).padStart(2, '0')}T${String(dateFound.getHours()).padStart(2, '0')}:${String(dateFound.getMinutes()).padStart(2, '0')}`;
-      await submitReport({ name, description, itemType, categoryCode, branchCode, locationCode, dateFound: dateValue, publicColor, image });
+      await submitReport({ contactNumber, email, name, description, itemType, categoryCode, branchCode, locationCode, dateFound: dateValue, publicColor, image });
       setSuccess('Report submitted. Your item is now in the open campus listings.');
-      setName(''); setDescription(''); setImage(null); setPublicColor('Unknown');
+      setName(''); setDescription(''); setContactNumber(''); setEmail(''); setContactErrors({}); setImage(null); setPublicColor('Unknown');
       await notify({ title: 'Report submitted', message: 'Your item is now in the campus listings.', tone: 'success' });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not submit this report.');
@@ -124,6 +137,9 @@ export default function ReportScreen() {
             <View style={styles.segment}>
               {(['lost', 'found'] as const).map((kind) => <Pressable key={kind} onPress={() => setItemType(kind)} style={[styles.segmentButton, itemType === kind && styles.segmentActive]}><Text style={[styles.segmentText, itemType === kind && styles.segmentTextActive]}>{kind === 'lost' ? 'I lost it' : 'I found it'}</Text></Pressable>)}
             </View>
+            <Field label="Contact number *" value={contactNumber} onChangeText={setContactNumber} error={contactErrors.phone} keyboardType="phone-pad" placeholder="e.g. 09123456789" />
+            <Field label="Email address *" value={email} onChangeText={setEmail} error={contactErrors.email} keyboardType="email-address" placeholder="e.g. name@example.com" />
+            <Text style={styles.help}>Use the contact details of the person reporting the item. Only authorized staff can view these details.</Text>
             <Field label="Item name" value={name} onChangeText={setName} placeholder="e.g. Black water bottle" />
             <Field label="Description" value={description} onChangeText={setDescription} placeholder="Brand, markings, or other details" multiline />
             <SelectField
@@ -171,7 +187,7 @@ export default function ReportScreen() {
                 <Pressable onPress={() => setPickerMode('time')} style={styles.dateButton}><Ionicons name="time-outline" size={18} color={colors.maroon} /><Text style={styles.dateText}>{dateFound.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text></Pressable>
               </View>
             </View>
-            {pickerMode ? <DateTimePicker value={dateFound} mode={pickerMode} maximumDate={pickerMode === 'date' ? new Date() : undefined} onChange={(_, date) => { setPickerMode(Platform.OS === 'ios' ? pickerMode : null); if (date) setDateFound(date); }} /> : null}
+            {pickerMode ? <DateTimePicker value={dateFound} mode={pickerMode} maximumDate={pickerMode === 'date' ? new Date() : undefined} onValueChange={(_, date) => { setPickerMode(Platform.OS === 'ios' ? pickerMode : null); setDateFound(date); }} onDismiss={() => setPickerMode(null)} /> : null}
             <View style={styles.field}><Text style={styles.label}>Item photo {itemType === 'found' ? '· required' : '· optional'}</Text>{image ? <View style={styles.previewWrap}><Image source={{ uri: image.uri }} style={styles.preview} /><Pressable onPress={() => setImage(null)} style={styles.remove}><Ionicons name="close-circle" size={25} color={colors.coral} /></Pressable></View> : <View style={styles.photoActions}><ActionButton title="Take photo" variant="secondary" onPress={() => void chooseImage('camera')} /><ActionButton title="Choose photo" variant="quiet" onPress={() => void chooseImage('library')} /></View>}</View>
             <ActionButton title="Submit report" onPress={() => void handleSubmit()} loading={loading} />
           </ScrollView>

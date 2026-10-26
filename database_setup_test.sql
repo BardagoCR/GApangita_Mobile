@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS items (
     location_code VARCHAR(15),
     item_file_path VARCHAR(255),
     public_color VARCHAR(50),
+    reporter_contact_number VARCHAR(20),
+    reporter_email VARCHAR(254),
     date_found DATETIME, -- timestamp the item was found by the reporter
     date_reported DATETIME DEFAULT CURRENT_TIMESTAMP, -- timestamp the item was reported by the reporter
     close_at DATETIME,
@@ -158,7 +160,7 @@ CREATE TABLE LOGS (
 -- 1
 DROP VIEW IF EXISTS vw_openAllItems;
 CREATE VIEW vw_openAllItems AS
-SELECT i.item_id, i.item_code, i.item_type,
+SELECT i.item_id, i.item_code, i.NAME AS name, i.item_type,
  CASE WHEN cl.status IN ('Pending','Under Review') THEN 'Under Verification'
       ELSE 'Available' END AS status,
  i.category_code, c.name AS categoryName, i.public_color,
@@ -176,12 +178,16 @@ WHERE i.STATUS='open'
 -- 2
 DROP VIEW IF EXISTS vw_openLostItems;
 CREATE VIEW vw_openLostItems AS
-SELECT * FROM vw_openAllItems WHERE item_type = 'lost';
+SELECT item_id, item_code, name, item_type, status, category_code, categoryName,
+ public_color, branch_code, branchName, location_code, date_found, date_reported
+FROM vw_openAllItems WHERE item_type = 'lost';
 
 -- 3
 DROP VIEW IF EXISTS vw_openFoundItems;
 CREATE VIEW vw_openFoundItems AS
-SELECT * FROM vw_openAllItems WHERE item_type = 'found';
+SELECT item_id, item_code, name, item_type, status, category_code, categoryName,
+ public_color, branch_code, branchName, location_code, date_found, date_reported
+FROM vw_openAllItems WHERE item_type = 'found';
 
 -- 4
 DROP VIEW IF EXISTS vw_closedAllItems;
@@ -451,7 +457,9 @@ CREATE PROCEDURE sp_submit_report(
     IN p_location_code VARCHAR(15),
     IN p_item_file_path VARCHAR(255),
     IN p_date_found DATETIME,
-    IN p_public_color VARCHAR(50)
+    IN p_public_color VARCHAR(50),
+    IN p_reporter_contact_number VARCHAR(20),
+    IN p_reporter_email VARCHAR(254)
 )
 BEGIN
     INSERT INTO items (
@@ -464,7 +472,9 @@ BEGIN
         location_code, 
         item_file_path,
         date_found,
-        public_color
+        public_color,
+        reporter_contact_number,
+        reporter_email
     )
     VALUES (
         p_name, 
@@ -476,7 +486,9 @@ BEGIN
         p_location_code, 
         p_item_file_path,
         p_date_found,
-        p_public_color
+        p_public_color,
+        p_reporter_contact_number,
+        p_reporter_email
     );
 END$$
 

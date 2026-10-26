@@ -88,7 +88,33 @@ async function appendImage(form: FormData, key: string, image: NonNullable<Repor
 }
 
 export async function submitReport(input: ReportInput) {
+  const phone = input.contactNumber.trim();
+  const email = input.email.trim();
+  const digits = phone.replace(/\D/g, '');
+  if (phone.length > 20 || !/^\+?[0-9 ()-]+$/.test(phone) || digits.length < 7 || digits.length > 15) {
+    throw new Error('Enter a valid contact number with 7 to 15 digits (maximum 20 characters).');
+  }
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address (maximum 254 characters).');
+  if (input.image) {
+    const size = input.image.size ?? input.image.file?.size;
+    if (size !== undefined && (size <= 0 || size > 5 * 1024 * 1024)) {
+      throw new Error('The report photo must be a non-empty image no larger than 5 MB. Choose a smaller photo.');
+    }
+    if (!/\.(jpe?g|png|gif|webp)$/i.test(input.image.name) || !['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(input.image.mimeType.toLowerCase())) {
+      throw new Error('Unsupported report photo format. Choose a JPEG, PNG, GIF, or WebP image. HEIC and PDF are not supported for report photos.');
+    }
+  }
+  if (!input.image) {
+    return request<{ message: string; id: number }>('/items', {
+      method: 'POST',
+      body: JSON.stringify({ name: input.name.trim(), description: input.description.trim(), item_type: input.itemType,
+        category_code: input.categoryCode, branch_code: input.branchCode, location_code: input.locationCode,
+        date_found: input.dateFound.replace('T', ' '), public_color: input.publicColor, reporter_contact_number: phone, reporter_email: email }),
+    });
+  }
   const form = new FormData();
+  form.append('reporter_contact_number', phone);
+  form.append('reporter_email', email);
   form.append('name', input.name.trim());
   form.append('description', input.description.trim());
   form.append('item_type', input.itemType);
@@ -97,7 +123,13 @@ export async function submitReport(input: ReportInput) {
   form.append('location_code', input.locationCode);
   form.append('date_found', input.dateFound.replace('T', ' '));
   form.append('public_color', input.publicColor);
-  if (input.image) await appendImage(form, 'item_image', input.image);
+  if (input.image) {
+    try {
+      await appendImage(form, 'item_image', input.image);
+    } catch {
+      throw new Error('Could not read the report photo. Select it again or choose a different photo.');
+    }
+  }
   return request<{ message: string; id: number }>('/items', { method: 'POST', body: form });
 }
 
@@ -146,7 +178,7 @@ export async function getClaimQueue() {
 }
 
 export async function getClaimDetails(itemCode: string, claimId?: number) {
-  return request<Claim & { item_description: string; item_name: string; item_description_private: string; item_status: string; location_code: string; item_file_path: string | null; public_color: string | null }>(claimId ? `/claim-records/${claimId}` : `/claims/${encodeURIComponent(itemCode)}`);
+  return request<Claim & { reporter_contact_number: string | null; reporter_email: string | null; item_description: string; item_name: string; item_description_private: string; item_status: string; location_code: string; item_file_path: string | null; public_color: string | null }>(claimId ? `/claim-records/${claimId}` : `/claims/${encodeURIComponent(itemCode)}`);
 }
 
 export async function updateClaimStatus(itemCode: string, status: Claim['status'], notes: string, claimId?: number) {

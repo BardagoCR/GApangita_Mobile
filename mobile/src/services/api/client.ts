@@ -82,7 +82,7 @@ export async function request<T>(path: string, init: RequestInit = {}, responseT
             : await response.json();
         } catch (reason) {
           if (controller.signal.aborted) throw reason;
-          throw new ApiError('The server returned an invalid response. Please retry.', response.status);
+          throw new ApiError(response.status === 413 ? 'The upload is too large. Choose a photo or evidence file no larger than 5 MB.' : 'The server returned an invalid response. Please retry.', response.status);
         }
         if (!response.ok) {
           const message = typeof payload === 'object' && payload && ('error' in payload || 'message' in payload)

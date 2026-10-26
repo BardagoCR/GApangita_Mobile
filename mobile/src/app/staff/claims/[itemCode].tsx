@@ -13,6 +13,8 @@ import { API_BASE_URL } from '@/src/services/api/client';
 import { colors } from '@/src/theme/colors';
 
 type ClaimDetails = Claim & {
+  reporter_contact_number: string | null;
+  reporter_email: string | null;
   item_description: string;
   item_name: string;
   item_description_private: string;
@@ -112,6 +114,8 @@ export default function ClaimDetailsScreen() {
               </View>
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Ownership details</Text>
+                <Text style={styles.detail}>Reporter contact: {claim.reporter_contact_number || 'Not provided'}</Text>
+                <Text style={styles.detail}>Reporter email: {claim.reporter_email || 'Not provided'}</Text>
                 <Text style={styles.detail}>Claimant description: {claim.item_description}</Text>
                 <Text style={styles.detail}>Identifying features: {claim.identifying_features}</Text>
                 <Text style={styles.detail}>Contents: {claim.contents || 'Not provided'}</Text>

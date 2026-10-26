@@ -124,19 +124,19 @@ User information and authentication loading/error state live in React memory. Th
 
 ### Finding an item
 
-The Find screen loads category/branch choices and branch-specific locations. `searchItems()` builds the query string for `/api/search`. Flask selects an open-item view, applies filters/search ranking and pagination, and serializes results through `public_item_row()`.
+The Find screen has one search field for public item names, category, color, campus, type, and reference information; the redundant description field was removed. It loads category/branch choices and branch-specific locations. `searchItems()` builds the query string for `/api/search`. Flask selects an open-item view, applies filters/search ranking and pagination, and serializes results through `public_item_row()`.
 
-Public responses include the item reference, type, availability, category, public color, campus/branch, dates, and `can_claim`. Private descriptions, claimant contact details, and stored file paths are not included in this public listing response.
+Public responses include the item name and reference, type, availability, category, public color, campus/branch, dates, and `can_claim`. Private descriptions, claimant contact details, and stored file paths are not included in this public listing response.
 
-The backend uses Levenshtein-distance matching for relevant search terms. The mobile screen debounces requests and cancels obsolete searches so older responses do not replace current results.
+The backend uses Levenshtein-distance matching against individual public fields and words, including item names. Each search term must meet a similarity threshold; exact names get priority, small spelling errors are tolerated, and unrelated results are excluded. The total is the number of matching items before pagination. Private descriptions and contact details are not searched. The mobile screen debounces requests and cancels obsolete searches so older responses do not replace current results.
 
 ### Reporting a lost or found item
 
-1. The signed-in user enters the item name, description, category, campus, location, public color, and date/time.
+1. The signed-in user enters the item name, description, category, campus, location, public color, date/time, reporter contact number, and reporter email address.
 2. The mobile form requires a photo for found items; a lost-item photo is optional.
 3. Validation runs before the styled confirmation dialog appears. Cancel leaves the form intact.
-4. `submitReport()` builds multipart `FormData`. The file field is named `item_image`.
-5. Flask saves the photo, if accepted, and calls `sp_submit_report` with nine parameters.
+4. `submitReport()` sends JSON for reports without a photo and multipart `FormData` for reports with one. The file field is named `item_image`.
+5. Flask saves the photo, if accepted, and calls `sp_submit_report` with eleven parameters, including the reporter contact number and email.
 6. Database triggers generate the item code and set its 21-day listing deadline. The backend commits and responds with HTTP 201.
 7. The app displays success and clears the relevant form fields.
 
@@ -218,13 +218,11 @@ Authenticated retrieval:
 
 Uploaded bytes are not stored as database BLOBs or base64 strings. The file sits on the backend computer; only its relative path is stored in the database. Original client filenames are not used as the final server filename. UUIDs avoid collisions between attachments with the same original name.
 
-Claim evidence accepts JPG/JPEG, PNG, GIF, WebP, and PDF, with a size limit of 5 MB. The backend checks the extension and file-header signatures. Its signature checks are basic validation, not a full content scan. Flask's total request limit is 10 MB, including multipart overhead. Report-photo validation currently differs from claim-evidence validation; see the limitations below.
+Claim evidence accepts JPG/JPEG, PNG, GIF, WebP, and PDF, with a size limit of 5 MB. The backend checks the extension and file-header signatures. Its signature checks are basic validation, not a full content scan. Flask's total request limit is 10 MB, including multipart overhead. Report photos accept JPEG, PNG, GIF, and WebP, are limited to 5 MB, and have extension/header validation. Found reports require a photo in both the form and API.
 
-### Backend launch directory matters
+### Backend upload directory
 
-Upload paths in `app.py` are currently relative (`uploads/...`). `backend/start.bat` first changes into `backend/`, so this is the expected launch method and produces `backend/uploads/...`.
-
-Launching `python backend/app.py` from the repository root can instead write to the root `uploads/` folder. Flask serving may resolve relative paths differently, causing an uploaded file to exist but return 404. The root `uploads/` directory is not an intended second storage service. Until paths are made absolute, start the backend from inside `backend/`.
+Upload paths are anchored to `app.root_path`, so report photos and claim evidence are saved under `backend/uploads/` regardless of the working directory used to launch Flask. Database values remain relative paths such as `items/item_<uuid>.png`. The root `uploads/` directory may contain older files from before this correction; it is not the current upload destination.
 
 Database rows and upload files must be preserved together. Backing up SQL rows alone does not back up the images/PDFs they reference. Removing an attachment file manually can leave a database path pointing to a missing file. Archiving, rejecting, and restoring do not automatically delete those attachments.
 
@@ -232,7 +230,7 @@ Database rows and upload files must be preserved together. Backing up SQL rows a
 
 | Table | Main purpose |
 | --- | --- |
-| `items` | Reported items, full private description, item type, category/branch/location links, photo path, report/found dates, expiry, status, restore count. |
+| `items` | Reported items, full private description, item type, category/branch/location links, photo path, reporter_contact_number, reporter_email, report/found dates, expiry, status, restore count. |
 | `claimed_items` | Each historical claim's identity/contact details, ownership answers, optional evidence path, status, staff notes, timestamps, and active-item key. |
 | `unarchived_items` | Restore events, reason, time, and copied claimant/evidence summary. Its legacy `claimProof_file_path` column receives data from the current claim's `evidence_file_path`. |
 | `users` | Staff/Admin account details, roles, and stored password values used by bcrypt login. |
@@ -261,7 +259,7 @@ Relationships: one item can have many historical claims and restore events; each
 | Lookup views | Category, branch, branch-location, and login data used by API queries. |
 | `sp_expire_items` / `ev_auto_close_items` | Materialize expired open items as closed; the event is scheduled every minute when the server event scheduler is enabled. |
 
-Listing views and claim/review checks enforce expiry directly. Visibility and claimability do not depend solely on the background scheduler running.
+The Lost and Found listing views explicitly include category_code, branch_code, and location_code so all dropdown filters work in each item-type tab. Listing views and claim/review checks enforce expiry directly. Visibility and claimability do not depend solely on the background scheduler running.
 
 `database_setup_test.sql` is a full creation/reset script, not a safe update command: it begins by dropping database users and the database. Re-running it against the working database removes existing records. Existing SQL source changes do not automatically apply themselves to an already running database.
 
@@ -276,7 +274,7 @@ Listing views and claim/review checks enforce expiry directly. Visibility and cl
 | `src/features/claims/validation.ts` | Claim field validation used before submission. |
 | `src/features/archive/ArchiveList.tsx` | Shared listing logic for staff archive and restore-history screens. |
 | `src/components/ui.tsx` | Shared buttons, fields, notices, selects, and page styling. |
-| `src/components/ItemCard.tsx` | Reusable listing card and navigation/availability presentation. |
+| `src/components/ItemCard.tsx` | Reusable listing card showing the actual item name, lost/found type, availability, and public metadata. |
 | `src/components/OptionalDateTimeField.tsx` | Optional last-seen date/time input used by the claim screen. |
 | `src/components/AppDialog.tsx` | Shared app-styled confirmation and notification dialogs through `useAppDialog()`. Cancel, Back, and unmount do not authorize an action. |
 | `src/theme/colors.ts` | Shared palette used throughout screens and dialogs. |
@@ -313,7 +311,7 @@ Paths below are relative to the API base ending in `/api`, except `/uploads/...`
 | GET | `/locations/by-branch/<branch_code>` | Locations belonging to a branch. |
 | GET | `/search` | Open listings; archive/history search requires Admin/Staff. |
 | GET | `/items/<item_code>` | Public details for an eligible open item. |
-| POST | `/items` | Multipart item report; logged-in session and CSRF required. |
+| POST | `/items` | JSON or multipart item report; logged-in session and CSRF required. |
 | POST | `/claims` | Public claim, JSON or multipart; signed-in accounts blocked. |
 | GET | `/claims` | Staff queue/history. |
 | GET | `/claim-records/<claim_id>` | Staff details for one exact claim. |
@@ -350,7 +348,9 @@ A timeout after submitting does not prove the write failed: the server might hav
    EXPO_PUBLIC_API_URL=http://<computer-lan-ip>:5000/api
    ```
 
-5. In another terminal, install/start the mobile app:
+5. Keep `EXPO_PUBLIC_USE_RN_FETCH=1` in `mobile/.env`. Expo 57 defaults to `expo/fetch`, whose multipart encoder does not support this app's native `{ uri, name, type }` file descriptors. This compatibility switch uses React Native fetch. Restart Expo and fully reload after changing the flag; distributed builds require a rebuild.
+
+6. In another terminal, install/start the mobile app:
 
    ```powershell
    cd mobile
@@ -366,12 +366,17 @@ Restart Expo and fully reload after changing `.env`. Built apps may need a rebui
 
 These are source-level observations, not changes made by this documentation task:
 
-- Upload paths depend on the backend working directory, as explained above.
-- Report and claim upload handling are not identical. Reports currently use extension-based acceptance, and unsupported report attachments may be ignored. The found-photo requirement is enforced in the mobile form but not equivalently in the report API.
-- Some upload/storage failures and oversized requests can still return non-JSON errors. Report upload cleanup after a database failure is incomplete; orphaned files can remain.
+- Report save failures now roll back and clean up the new photo, and oversized requests return JSON 413. Claim storage failures before its database handler and some other endpoints still need consistent error handling.
 - Public listing JSON omits private item details, but `/uploads/items/...` currently does not require staff authentication when a filename is known. This route does not provide the same privacy boundary as the listing serializer.
 - The review screen requests evidence through the authenticated API, then opens an upload URL externally. An external browser may not share the app's session cookie, so opening evidence on a phone needs device verification.
 - Restore-history details currently use a native alert in the shared archive component; the newer important-action confirmations use `AppDialog.tsx`.
 - Date/time strings are stored without explicit timezone conversion. Cross-timezone behavior is not implemented as a consistent UTC pipeline.
 - The development backend includes local credentials/session configuration and broad CORS settings. Production deployment requires a separate configuration review and HTTPS.
 - Historical audit documents describe older states, and some earlier scripts were intentionally deleted. Treat the current source and this guide as the explanation of the present structure; this document does not certify a fresh database import or a physical-phone test.
+
+
+## Reporter contact details
+
+New lost/found reports require a contact number (7?15 digits, up to 20 characters including formatting) and valid email address (up to 254 characters). Both are validated on the mobile form, API service, and backend. JSON and multipart report submissions send `reporter_contact_number` and `reporter_email`; `sp_submit_report` now accepts eleven parameters and stores the fields directly in `items`.
+
+The two database columns are nullable so existing reports do not need invented contact information. Public search/item responses omit them. Admin/Staff item-detail responses and staff claim-review details include them. The claim-review screen shows them to staff. Public listing cards and the item-details screen keep the item name, category, public color, campus and reported date without reporter contact rows. These fields identify the person reporting the item and are separate from a claimant's contact information. Updating them does not update an account's email/contact profile.

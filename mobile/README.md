@@ -49,3 +49,7 @@ For physical phones, check the computer's current LAN IPv4 address with ipconfig
 From the phone browser, open http://<computer-lan-ip>:5000/api/health (Flask liveness) and /api/ready (database readiness). Health should return 200; readiness returns 503 if MySQL cannot connect. Check same Wi-Fi, firewall port 5000, VPNs, and wireless client isolation. Expo/Metro or an Expo tunnel reaching the phone does not establish Flask reachability.
 
 Device QA still requires a physical phone: test fresh launch, signed-in claim blocking, session expiry, offline/online recovery, interrupted uploads, and cookie/CSRF continuity. Record five cold and five warm launch timings before judging performance improvements.
+
+## Expo 57 upload transport
+
+Keep `EXPO_PUBLIC_USE_RN_FETCH=1` in the mobile environment. Expo 57 defaults to `expo/fetch`, whose multipart encoder does not accept the native `{ uri, name, type }` attachments used by this app. This compatibility switch retains React Native fetch for these uploads. Restart Expo and fully reload after changing it; distributed apps require a rebuild.

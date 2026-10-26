@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Item } from '@/src/types/api';
 import { colors } from '@/src/theme/colors';
+import { formatDisplayDate } from '@/src/utils/dates';
 
 export function ItemCard({ item, onPress }: { item: Item; onPress: () => void }) {
   const statusLabel = item.status === 'Available'
@@ -33,11 +34,13 @@ export function ItemCard({ item, onPress }: { item: Item; onPress: () => void })
 
       <View style={styles.body}>
         <View style={styles.titleRow}>
-          <Text numberOfLines={1} style={styles.title}>{isFound ? 'Found item' : 'Lost item'}</Text>
+          <Text numberOfLines={1} style={styles.title}>{item.name || (isFound ? 'Found item' : 'Lost item')}</Text>
           <View style={[styles.statusPill, !item.can_claim && styles.statusPillMuted]}>
             <Text style={[styles.statusText, !item.can_claim && styles.statusTextMuted]}>{statusLabel}</Text>
           </View>
         </View>
+
+        <Text style={styles.meta}>{isFound ? 'Found item' : 'Lost item'}</Text>
 
         {(item.public_color || item.categoryName) ? (
           <View style={styles.chipRow}>
@@ -64,7 +67,7 @@ export function ItemCard({ item, onPress }: { item: Item; onPress: () => void })
           <View style={styles.metaItem}>
             <Ionicons name="calendar-outline" size={13} color={colors.muted} />
             <Text style={styles.meta}>
-              {item.date_found ? `Reported ${item.date_found.slice(0, 10)}` : 'Date not available'}
+              {item.date_found ? `Reported ${formatDisplayDate(item.date_found)}` : 'Date not available'}
             </Text>
           </View>
         </View>

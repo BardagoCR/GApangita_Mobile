@@ -4,11 +4,12 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ActionButton, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
+import { ActionButton, Heading, Notice, Page, TAB_BAR_CONTENT_PADDING } from '@/src/components/ui';
 import { request } from '@/src/services/api/client';
 import type { Item } from '@/src/types/api';
 import { useAuth } from '@/src/features/auth/AuthContext';
 import { colors } from '@/src/theme/colors';
+import { formatDisplayDate } from '@/src/utils/dates';
 
 export default function ItemDetailsScreen() {
   const { user, isLoading: authLoading, authError, refreshAuth } = useAuth();
@@ -52,13 +53,14 @@ export default function ItemDetailsScreen() {
               <View style={[styles.badge, item.item_type === 'found' ? styles.found : styles.lost]}>
                 <Text style={styles.badgeText}>{item.item_type.toUpperCase()} ITEM</Text>
               </View>
+              <Heading>{item.name || (item.item_type === 'found' ? 'Found item' : 'Lost item')}</Heading>
               <Text style={styles.status}>{statusLabel}</Text>
               <Text style={styles.itemCode}>REFERENCE {item.item_code}</Text>
               <View style={styles.rule} />
               <DetailRow icon="pricetag-outline" label="Category" value={item.categoryName || 'Not specified'} />
               <DetailRow icon="color-filter-outline" label="Public color" value={item.public_color || 'Not specified'} />
               <DetailRow icon="location-outline" label="Campus" value={item.branchName || 'Not specified'} />
-              <DetailRow icon="calendar-outline" label="Reported" value={item.date_found ? item.date_found.slice(0, 10) : 'Not specified'} />
+              <DetailRow icon="calendar-outline" label="Reported" value={formatDisplayDate(item.date_found, 'Not specified')} />
               <Notice>Private item details and original photos are available only to authorized staff.</Notice>
               <ActionButton
                 title={user ? 'Sign out to claim' : authLoading || authError ? 'Session check required' : item.can_claim ? 'This is mine · Start a claim' : 'Claim unavailable'}

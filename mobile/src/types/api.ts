@@ -41,6 +41,7 @@ export type PublicColor =
   | 'Unknown';
 
 export type Item = {
+  name: string | null;
   item_code: string;
   item_type: 'lost' | 'found';
   status: 'Available' | 'Under Verification' | 'Unavailable' | 'Contact Staff' | 'Closed';
@@ -50,6 +51,8 @@ export type Item = {
   date_found: string | null;
   date_reported: string | null;
   can_claim: boolean;
+  reporter_contact_number?: string | null;
+  reporter_email?: string | null;
 };
 
 export type SearchResponse = {
@@ -68,6 +71,8 @@ export type ImageAttachment = {
 };
 
 export type ReportInput = {
+  contactNumber: string;
+  email: string;
   name: string;
   description: string;
   itemType: Item['item_type'];
