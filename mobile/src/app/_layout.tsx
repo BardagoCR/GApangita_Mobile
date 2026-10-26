@@ -15,7 +15,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="claims/[itemCode]" options={{ headerShown: true, title: 'Claim item' }} />
           <Stack.Screen name="staff/claims" options={{ headerShown: true, title: 'Claim queue' }} />
-          <Stack.Screen name="staff/claims/[itemCode]" options={{ headerShown: true, title: 'Claim details' }} />
+          <Stack.Screen name="staff/claims/[itemCode]" options={{ headerShown: false }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>
