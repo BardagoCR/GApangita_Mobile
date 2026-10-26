@@ -62,12 +62,12 @@ export default function ClaimDetailsScreen() {
     setSaving(true);
     setError('');
     try {
-      const consequence = status === claim.status ? 'Save the staff notes for this claim without changing its status?'
+      const consequence = status === claim.status ? 'Save your updated notes for this claim?'
         : status === 'Returned' ? 'Confirm that the item has been handed back to its owner. The item will remain archived. If this was recorded by mistake, you can correct it back to Approved.'
           : status === 'Rejected' ? 'Reject this claim? The item becomes claimable again until its original expiry. This decision is final; the claim and evidence stay in history.'
             : status === 'Approved' ? claim.status === 'Returned' ? 'Correct the returned status back to Approved? The item stays archived and unavailable for new claims. Use the staff notes to explain the correction.' : 'Approve ownership and archive this item? It will no longer be claimable in the listings.'
               : `Change this claim from ${claim.status} to ${status}? The item will stay reserved while it is being reviewed.`;
-      if (!await confirm({ title: status === claim.status ? 'Save staff notes?' : `Mark claim ${status.toLowerCase()}?`, message: consequence + (status !== claim.status ? ' Your current staff notes will also be saved.' : ''), confirmLabel: status === claim.status ? 'Save notes' : `Confirm ${status}`, tone: ['Approved', 'Rejected', 'Returned'].includes(status) ? 'warning' : 'default' })) return;
+      if (!await confirm({ title: status === claim.status ? 'Save notes?' : `Mark claim ${status.toLowerCase()}?`, message: consequence + (status !== claim.status ? ' Your current staff notes will also be saved.' : ''), confirmLabel: status === claim.status ? 'Save notes' : `Confirm ${status}`, tone: ['Approved', 'Rejected', 'Returned'].includes(status) ? 'warning' : 'default' })) return;
       await updateClaimStatus(claim.item_code, status, notes, claim.claimed_item_id);
       setClaim({ ...claim, status, staff_notes: notes, date_updated: new Date().toISOString() });
       await notify({ title: 'Claim saved', message: status === claim.status ? 'Your staff notes have been saved.' : `Status changed to ${status}.`, tone: 'success' });
@@ -128,7 +128,7 @@ export default function ClaimDetailsScreen() {
                 {claim.status === 'Returned' ? <Notice>Recorded as handed to its owner. If this was a mistake, change it back to Approved and explain the correction in staff notes. The item will remain archived.</Notice> : null}
                 <View style={styles.statusRow}>{statuses.map((status) => <Pressable key={status} accessibilityRole="button" disabled={saving || !transitions[claim.status].includes(status)} onPress={() => void saveStatus(status)} style={[styles.statusButton, claim.status === status && styles.statusActive, !transitions[claim.status].includes(status) && claim.status !== status && styles.statusDisabled]}><Text style={[styles.statusText, claim.status === status && styles.statusTextActive]}>{status}</Text></Pressable>)}</View>
                 <Field label="Staff notes" value={notes} onChangeText={setNotes} multiline placeholder="Record verification findings or follow-up instructions." />
-                <ActionButton title="Save notes and status" onPress={() => void saveStatus(claim.status)} loading={saving} disabled={saving} />
+                <ActionButton title="Save notes" onPress={() => void saveStatus(claim.status)} loading={saving} disabled={saving} />
               </View>
               <Text style={styles.updated}>Last updated {claim.date_updated}</Text>
             </View>
